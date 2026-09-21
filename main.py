@@ -1,6 +1,8 @@
 import re
 import os
 import io
+import gc
+import time
 import base64
 import secrets
 import datetime
@@ -411,33 +413,44 @@ lista puede quedarse sin nombrar. Si el grupo es grande, ajusta la longitud del 
 personas en la misma frase si hace falta, pero no omitas a nadie de la lista. No inventes hechos, cifras
 ni nombres que no estén en los datos de arriba. Escribe en prosa corrida, sin emojis ni símbolos decorativos."""
 
-    try:
-        respuesta = CLIENTE_GEMINI.models.generate_content(
-            model="gemini-3.5-flash",
-            contents=prompt,
-            config=google_genai_types.GenerateContentConfig(
-                max_output_tokens=max_tokens,
-                # Sin esto, el modelo gasta parte del presupuesto de tokens en
-                # "pensar" internamente antes de escribir, y el texto visible
-                # puede cortarse a mitad de frase. Para una tarea de redacción
-                # como esta no hace falta razonamiento, así que lo desactivamos.
-                thinking_config=google_genai_types.ThinkingConfig(thinking_budget=0),
-            ),
-        )
-        texto = (respuesta.text or "").strip()
+    # Gemini devuelve 503 "UNAVAILABLE" bastante a menudo cuando el modelo está
+    # saturado; casi siempre basta con reintentar a los pocos segundos. En vez
+    # de rendirnos al primer fallo, probamos varias veces con una pequeña
+    # espera creciente antes de dar el resumen por perdido.
+    NUM_INTENTOS = 3
+    ESPERA_ENTRE_INTENTOS_SEG = [4, 10]  # antes del 2º y 3er intento
 
-        # Aviso en logs si, aun así, la respuesta se quedó corta por límite de tokens
+    for intento in range(NUM_INTENTOS):
         try:
-            motivo_corte = respuesta.candidates[0].finish_reason
-            if motivo_corte and "MAX_TOKENS" in str(motivo_corte):
-                print(f"[Resumen IA] Aviso: la respuesta se cortó por MAX_TOKENS (max_tokens={max_tokens}).")
-        except Exception:
-            pass
+            respuesta = CLIENTE_GEMINI.models.generate_content(
+                model="gemini-3.5-flash",
+                contents=prompt,
+                config=google_genai_types.GenerateContentConfig(
+                    max_output_tokens=max_tokens,
+                    # Sin esto, el modelo gasta parte del presupuesto de tokens en
+                    # "pensar" internamente antes de escribir, y el texto visible
+                    # puede cortarse a mitad de frase. Para una tarea de redacción
+                    # como esta no hace falta razonamiento, así que lo desactivamos.
+                    thinking_config=google_genai_types.ThinkingConfig(thinking_budget=0),
+                ),
+            )
+            texto = (respuesta.text or "").strip()
 
-        return texto
-    except Exception as e:
-        print(f"[Resumen IA] Error llamando a la API de Gemini: {e}")
-        return f"No se pudo generar el resumen con IA en este momento ({type(e).__name__})."
+            # Aviso en logs si, aun así, la respuesta se quedó corta por límite de tokens
+            try:
+                motivo_corte = respuesta.candidates[0].finish_reason
+                if motivo_corte and "MAX_TOKENS" in str(motivo_corte):
+                    print(f"[Resumen IA] Aviso: la respuesta se cortó por MAX_TOKENS (max_tokens={max_tokens}).")
+            except Exception:
+                pass
+
+            return texto
+        except Exception as e:
+            es_ultimo_intento = intento == NUM_INTENTOS - 1
+            print(f"[Resumen IA] Intento {intento + 1}/{NUM_INTENTOS} fallido llamando a Gemini: {e}")
+            if es_ultimo_intento:
+                return f"No se pudo generar el resumen con IA en este momento ({type(e).__name__})."
+            time.sleep(ESPERA_ENTRE_INTENTOS_SEG[intento])
 
 
 EXPLICACIONES_GRAFICAS = {
@@ -576,7 +589,25 @@ async def inicio(request: Request):
 @app.post("/analizar", response_class=HTMLResponse)
 def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: str = Form(None)):
     contenido = file.file.read()
+
+    # El plan Free de Render tiene solo 512MB de RAM. Un .txt de WhatsApp muy
+    # grande se convierte en un DataFrame bastante más pesado que el propio
+    # archivo (cada mensaje es un objeto de texto en Python), y encima genera
+    # 13 gráficas interactivas a la vez: por encima de este tamaño es fácil
+    # quedarse sin memoria. Lo rechazamos con un aviso claro en vez de que el
+    # servicio se caiga a medias.
+    LIMITE_TAMANO_MB = 25
+    if len(contenido) > LIMITE_TAMANO_MB * 1024 * 1024:
+        return HTMLResponse(
+            f"<h2 style='color:white; font-family:sans-serif; text-align:center; margin-top:50px;'>"
+            f"Tu archivo pesa más de {LIMITE_TAMANO_MB}MB y este servidor no tiene memoria suficiente "
+            f"para procesarlo de una vez.<br><br>Prueba a exportar un rango de fechas más corto, o a "
+            f"dividir el chat en varias exportaciones.</h2>",
+            status_code=413,
+        )
+
     df = procesar_chat_whatsapp(contenido)
+    del contenido  # ya no hace falta el texto en crudo, liberamos su memoria cuanto antes
 
     if df.empty:
         return HTMLResponse("<h2 style='color:white; font-family:sans-serif; text-align:center; margin-top:50px;'>Error: El formato de tu archivo de chat no coincide con los patrones de lectura de WhatsApp.</h2>", status_code=400)
@@ -616,6 +647,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
     fig1.update_traces(texttemplate='%{text:,}', textposition='outside', cliponaxis=False)
     fig1.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, margin=dict(t=50,b=20,l=140,r=80), xaxis=dict(visible=False), yaxis=dict(title=''))
     g1 = pio.to_html(fig1, full_html=False, include_plotlyjs=False, div_id='g-ranking', config={'displayModeBar': False})
+    del fig1
 
     # 2. Gráfica: Actividad por Hora
     m_hora = df['Hora_Int'].value_counts().sort_index().reindex(range(0, 24), fill_value=0).reset_index()
@@ -624,6 +656,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
     fig2.update_traces(line=dict(color='#128C7E', width=3))
     fig2.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(t=50,b=20,l=20,r=20), xaxis=dict(title='', tickmode='linear', tick0=0, dtick=2), yaxis=dict(title=''))
     g2 = pio.to_html(fig2, full_html=False, include_plotlyjs=False, div_id='g-horas', config={'displayModeBar': False})
+    del fig2
 
     # 3. Gráfica: Matriz de Afinidad Cruzada
     df_f_matriz = df[df['Autor'].isin(usuarios_top_15) & df['Autor_Anterior'].isin(usuarios_top_15)]
@@ -638,6 +671,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
     fig3.update_layout(title='Matriz de Afinidad Cruzada (% de respuestas por fila)', template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', height=650, margin=dict(t=60, b=120, l=140, r=20), yaxis=dict(autorange="reversed"))
     fig3.update_xaxes(tickangle=-45)
     g3 = pio.to_html(fig3, full_html=False, include_plotlyjs=False, div_id='g-matriz', config={'displayModeBar': False})
+    del fig3
 
     # 4. Gráfica: Evolución Anual
     m_tiempo = df['Año'].value_counts().sort_index().reset_index()
@@ -647,6 +681,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
     fig4.update_traces(marker_color='#128C7E', texttemplate='%{text:,}', textposition='outside', cliponaxis=False)
     fig4.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(t=50,b=20,l=20,r=20), xaxis=dict(title=''), yaxis=dict(visible=False))
     g4 = pio.to_html(fig4, full_html=False, include_plotlyjs=False, div_id='g-evolucion', config={'displayModeBar': False})
+    del fig4
 
     # =========================================================================
     # 5. 🌟 CREACIÓN SÓLIDA DEL DATAFRAME DE CONVIVENCIA (PARA EVITAR WARNINGS)
@@ -676,6 +711,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
     fig5_tiempo.update_traces(textposition='outside', cliponaxis=False)
     fig5_tiempo.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, height=550, margin=dict(t=50, b=40, l=140, r=80), xaxis=dict(visible=False), yaxis=dict(title=''))
     g5_tiempo = pio.to_html(fig5_tiempo, full_html=False, include_plotlyjs=False, div_id='g-tiempo', config={'displayModeBar': False})
+    del fig5_tiempo
 
     # 5B. Mensajes Fantasma
     df_fantasma = df_convivencia.sort_values(by='Mensajes Fantasma (%)', ascending=False)
@@ -685,6 +721,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
     fig5_fantasma.update_traces(textposition='outside', cliponaxis=False)
     fig5_fantasma.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, height=550, margin=dict(t=50, b=40, l=140, r=70), xaxis=dict(visible=False), yaxis=dict(title=''))
     g5_fantasma = pio.to_html(fig5_fantasma, full_html=False, include_plotlyjs=False, div_id='g-fantasma', config={'displayModeBar': False})
+    del fig5_fantasma
 
     # --- Gráfica de Palabras Clave Personalizadas ---
     if custom_words and custom_words.strip():
@@ -718,11 +755,13 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
         registros_conceptos.append({'Concepto': palabra, 'Frecuencia': total_veces, 'Detalle_Autores': info_hover})
 
     df_conceptos = pd.DataFrame(registros_conceptos).sort_values('Frecuencia', ascending=True)
+    df.drop(columns=['Mensaje_Minus'], inplace=True)  # era una copia completa del texto: liberamos esa memoria ya
 
     fig_palabras = px.bar(df_conceptos, x='Frecuencia', y='Concepto', orientation='h', text='Frecuencia', title='Frecuencia de palabras clave personalizadas', color='Frecuencia', color_continuous_scale='tealgrn', custom_data=['Detalle_Autores'])
     fig_palabras.update_traces(texttemplate='%{text:,}', textposition='outside', cliponaxis=False, hovertemplate="<b>Palabra:</b> %{y}<br><b>Total en grupo:</b> %{x} veces<br><br><b>Desglose de uso:</b><br>%{customdata[0]}<extra></extra>")
     fig_palabras.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, margin=dict(t=50,b=20,l=100,r=70), xaxis=dict(visible=False), yaxis=dict(title=''))
     g_palabras = pio.to_html(fig_palabras, full_html=False, include_plotlyjs=False, div_id='g-palabras', config={'displayModeBar': False})
+    del fig_palabras
 
     # 6. Gráfica: Bubble Chart
     # Excluimos mensajes multimedia/eliminados para que no contaminen el mapa de conceptos
@@ -817,6 +856,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
         yaxis=dict(title='', autorange='reversed')
     )
     g7 = pio.to_html(fig7, full_html=False, include_plotlyjs=False, div_id='g-heatmap-semana', config={'displayModeBar': False})
+    del fig7
 
     # =========================================================================
     # 8. 📎 NUEVO: Mensajes Multimedia / Eliminados por usuario
@@ -833,6 +873,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
     fig8.update_traces(texttemplate='%{text:,}', textposition='outside', cliponaxis=False)
     fig8.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, height=550, margin=dict(t=50,b=20,l=140,r=70), xaxis=dict(visible=False), yaxis=dict(title=''))
     g8 = pio.to_html(fig8, full_html=False, include_plotlyjs=False, div_id='g-multimedia', config={'displayModeBar': False})
+    del fig8
 
     # 8B. Mensajes Eliminados por usuario
     eliminados_por_usuario = df[df['Es_Eliminado']]['Autor'].value_counts().reindex(usuarios_top_15, fill_value=0)
@@ -844,6 +885,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
     fig8b.update_traces(texttemplate='%{text:,}', textposition='outside', cliponaxis=False)
     fig8b.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, height=550, margin=dict(t=50,b=20,l=140,r=70), xaxis=dict(visible=False), yaxis=dict(title=''))
     g8b = pio.to_html(fig8b, full_html=False, include_plotlyjs=False, div_id='g-eliminados', config={'displayModeBar': False})
+    del fig8b
 
     # =========================================================================
     # 9. ✍️ NUEVO: Longitud media de mensaje por usuario (solo texto real)
@@ -859,6 +901,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
     fig9.update_traces(textposition='outside', cliponaxis=False)
     fig9.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, height=550, margin=dict(t=50,b=20,l=140,r=70), xaxis=dict(visible=False), yaxis=dict(title=''))
     g9 = pio.to_html(fig9, full_html=False, include_plotlyjs=False, div_id='g-longitud', config={'displayModeBar': False})
+    del fig9
 
     # =========================================================================
     # 10. 😂 NUEVO: Ranking de Emojis más usados
@@ -876,6 +919,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
         fig10.update_traces(texttemplate='%{text:,}', textposition='outside', cliponaxis=False)
         fig10.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, height=550, margin=dict(t=50,b=20,l=70,r=70), xaxis=dict(visible=False), yaxis=dict(title='', tickfont=dict(size=26)))
         g10 = pio.to_html(fig10, full_html=False, include_plotlyjs=False, div_id='g-emojis', config={'displayModeBar': False})
+        del fig10
 
     ranking_tabla = [{"usuario": u, "cantidad": m} for u, m in total_mensajes_usuario.items()]
 
@@ -1030,6 +1074,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
         "g6_base64": g6_base64,
     }
     pdf_token = _guardar_datos_pdf_en_cache(datos_pdf)
+    gc.collect()
 
     return templates.TemplateResponse(
         name="resultados.html",
@@ -1223,6 +1268,8 @@ def generar_pdf(token: str):
 
     # Un solo uso: liberamos la memoria en cuanto se ha generado el PDF
     CACHE_DATOS_PDF.pop(token, None)
+    del imagenes_pdf
+    gc.collect()
 
     return Response(
         content=pdf_bytes,
