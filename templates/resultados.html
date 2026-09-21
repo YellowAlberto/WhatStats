@@ -43,11 +43,14 @@
             </div>
         </div>
 
-        {% if pdf_base64 %}
-        <a href="data:application/pdf;base64,{{ pdf_base64 }}" download="Informe_Analisis_WhatsApp.pdf"
-           class="mb-8 w-full flex items-center justify-center gap-3 bg-gradient-to-r from-teal-500 to-teal-400 hover:from-teal-400 hover:to-teal-300 text-slate-950 font-black py-4 px-6 rounded-2xl transition shadow-lg tracking-wide cursor-pointer text-sm">
-            📄 Descargar Informe PDF Completo (con explicaciones y resumen IA)
-        </a>
+        {% if pdf_token %}
+        <button type="button" id="btnDescargarPdf" onclick="descargarInformePDF('{{ pdf_token }}')"
+           class="mb-8 w-full flex items-center justify-center gap-3 bg-gradient-to-r from-teal-500 to-teal-400 hover:from-teal-400 hover:to-teal-300 text-slate-950 font-black py-4 px-6 rounded-2xl transition shadow-lg tracking-wide cursor-pointer text-sm disabled:opacity-60 disabled:cursor-wait">
+            📄 Generar y Descargar Informe PDF Completo (con explicaciones y resumen IA)
+        </button>
+        <p id="pdfHint" class="hidden text-[11px] text-slate-500 text-center -mt-6 mb-8">
+            ⏳ Generando el informe (resumen con IA + gráficas)… puede tardar unos segundos.
+        </p>
         {% endif %}
 
         <p class="text-sm text-slate-400 text-center mb-6">
@@ -233,6 +236,38 @@
             botonActivo.classList.add('border-teal-400', 'text-teal-400');
 
             window.dispatchEvent(new Event('resize'));
+        }
+
+        async function descargarInformePDF(token) {
+            const boton = document.getElementById('btnDescargarPdf');
+            const pista = document.getElementById('pdfHint');
+            const textoOriginal = boton.innerHTML;
+
+            boton.disabled = true;
+            boton.innerHTML = '⏳ Generando informe…';
+            pista.classList.remove('hidden');
+
+            try {
+                const respuesta = await fetch(`/generar_pdf/${token}`);
+                if (!respuesta.ok) {
+                    throw new Error('No se pudo generar el informe PDF.');
+                }
+                const blob = await respuesta.blob();
+                const url = URL.createObjectURL(blob);
+                const enlace = document.createElement('a');
+                enlace.href = url;
+                enlace.download = 'Informe_Analisis_WhatsApp.pdf';
+                document.body.appendChild(enlace);
+                enlace.click();
+                enlace.remove();
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                alert('Hubo un problema generando el informe PDF. Vuelve a intentarlo en unos segundos.');
+            } finally {
+                boton.disabled = false;
+                boton.innerHTML = textoOriginal;
+                pista.classList.add('hidden');
+            }
         }
 
         function descargarPlotly(divId, filename) {

@@ -588,7 +588,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
     fig1 = px.bar(top_autores.sort_values('Mensajes'), x='Mensajes', y='Usuario', orientation='h', text='Mensajes', title='Miembros más activos', color='Mensajes', color_continuous_scale='tealgrn')
     fig1.update_traces(texttemplate='%{text:,}', textposition='outside', cliponaxis=False)
     fig1.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, margin=dict(t=50,b=20,l=140,r=80), xaxis=dict(visible=False), yaxis=dict(title=''))
-    g1 = pio.to_html(fig1, full_html=False, div_id='g-ranking', config={'displayModeBar': False})
+    g1 = pio.to_html(fig1, full_html=False, include_plotlyjs=False, div_id='g-ranking', config={'displayModeBar': False})
 
     # 2. Gráfica: Actividad por Hora
     m_hora = df['Hora_Int'].value_counts().sort_index().reindex(range(0, 24), fill_value=0).reset_index()
@@ -596,7 +596,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
     fig2 = px.line(m_hora, x='Hora', y='Mensajes', title='Actividad por hora del día', markers=True)
     fig2.update_traces(line=dict(color='#128C7E', width=3))
     fig2.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(t=50,b=20,l=20,r=20), xaxis=dict(title='', tickmode='linear', tick0=0, dtick=2), yaxis=dict(title=''))
-    g2 = pio.to_html(fig2, full_html=False, div_id='g-horas', config={'displayModeBar': False})
+    g2 = pio.to_html(fig2, full_html=False, include_plotlyjs=False, div_id='g-horas', config={'displayModeBar': False})
 
     # 3. Gráfica: Matriz de Afinidad Cruzada
     df_f_matriz = df[df['Autor'].isin(usuarios_top_15) & df['Autor_Anterior'].isin(usuarios_top_15)]
@@ -610,7 +610,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
     fig3 = go.Figure(data=go.Heatmap(z=matriz_valores, x=matriz_normalizada.columns, y=matriz_normalizada.index, colorscale='GnBu', text=texto_celdas, texttemplate="%{text}", hoverinfo="text"))
     fig3.update_layout(title='Matriz de Afinidad Cruzada (% de respuestas por fila)', template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', height=650, margin=dict(t=60, b=120, l=140, r=20), yaxis=dict(autorange="reversed"))
     fig3.update_xaxes(tickangle=-45)
-    g3 = pio.to_html(fig3, full_html=False, div_id='g-matriz', config={'displayModeBar': False})
+    g3 = pio.to_html(fig3, full_html=False, include_plotlyjs=False, div_id='g-matriz', config={'displayModeBar': False})
 
     # 4. Gráfica: Evolución Anual
     m_tiempo = df['Año'].value_counts().sort_index().reset_index()
@@ -619,7 +619,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
     fig4 = px.bar(m_tiempo, x='Año', y='Mensajes', text='Mensajes', title='Mensajes enviados por año')
     fig4.update_traces(marker_color='#128C7E', texttemplate='%{text:,}', textposition='outside', cliponaxis=False)
     fig4.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(t=50,b=20,l=20,r=20), xaxis=dict(title=''), yaxis=dict(visible=False))
-    g4 = pio.to_html(fig4, full_html=False, div_id='g-evolucion', config={'displayModeBar': False})
+    g4 = pio.to_html(fig4, full_html=False, include_plotlyjs=False, div_id='g-evolucion', config={'displayModeBar': False})
 
     # =========================================================================
     # 5. 🌟 CREACIÓN SÓLIDA DEL DATAFRAME DE CONVIVENCIA (PARA EVITAR WARNINGS)
@@ -648,7 +648,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
     fig5_tiempo = px.bar(df_tiempo, x='Tiempo Respuesta (min)', y='Usuario', orientation='h', title='⏱️ Tiempo de Respuesta Medio por Miembro', color='Tiempo Respuesta (min)', color_continuous_scale='tealgrn', text='Texto_Formateado')
     fig5_tiempo.update_traces(textposition='outside', cliponaxis=False)
     fig5_tiempo.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, height=550, margin=dict(t=50, b=40, l=140, r=80), xaxis=dict(visible=False), yaxis=dict(title=''))
-    g5_tiempo = pio.to_html(fig5_tiempo, full_html=False, div_id='g-tiempo', config={'displayModeBar': False})
+    g5_tiempo = pio.to_html(fig5_tiempo, full_html=False, include_plotlyjs=False, div_id='g-tiempo', config={'displayModeBar': False})
 
     # 5B. Mensajes Fantasma
     df_fantasma = df_convivencia.sort_values(by='Mensajes Fantasma (%)', ascending=False)
@@ -657,7 +657,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
     fig5_fantasma = px.bar(df_fantasma, x='Mensajes Fantasma (%)', y='Usuario', orientation='h', text='Texto_Porcentaje', title='👻 Fantasmas del Grupo: Porcentaje de Vistos', color='Mensajes Fantasma (%)', color_continuous_scale='rdpu')
     fig5_fantasma.update_traces(textposition='outside', cliponaxis=False)
     fig5_fantasma.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, height=550, margin=dict(t=50, b=40, l=140, r=70), xaxis=dict(visible=False), yaxis=dict(title=''))
-    g5_fantasma = pio.to_html(fig5_fantasma, full_html=False, div_id='g-fantasma', config={'displayModeBar': False})
+    g5_fantasma = pio.to_html(fig5_fantasma, full_html=False, include_plotlyjs=False, div_id='g-fantasma', config={'displayModeBar': False})
 
     # --- Gráfica de Palabras Clave Personalizadas ---
     if custom_words and custom_words.strip():
@@ -695,7 +695,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
     fig_palabras = px.bar(df_conceptos, x='Frecuencia', y='Concepto', orientation='h', text='Frecuencia', title='Frecuencia de palabras clave personalizadas', color='Frecuencia', color_continuous_scale='tealgrn', custom_data=['Detalle_Autores'])
     fig_palabras.update_traces(texttemplate='%{text:,}', textposition='outside', cliponaxis=False, hovertemplate="<b>Palabra:</b> %{y}<br><b>Total en grupo:</b> %{x} veces<br><br><b>Desglose de uso:</b><br>%{customdata[0]}<extra></extra>")
     fig_palabras.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, margin=dict(t=50,b=20,l=100,r=70), xaxis=dict(visible=False), yaxis=dict(title=''))
-    g_palabras = pio.to_html(fig_palabras, full_html=False, div_id='g-palabras', config={'displayModeBar': False})
+    g_palabras = pio.to_html(fig_palabras, full_html=False, include_plotlyjs=False, div_id='g-palabras', config={'displayModeBar': False})
 
     # 6. Gráfica: Bubble Chart
     # Excluimos mensajes multimedia/eliminados para que no contaminen el mapa de conceptos
@@ -789,7 +789,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
         xaxis=dict(title='Hora del día', tickmode='linear', tick0=0, dtick=2),
         yaxis=dict(title='', autorange='reversed')
     )
-    g7 = pio.to_html(fig7, full_html=False, div_id='g-heatmap-semana', config={'displayModeBar': False})
+    g7 = pio.to_html(fig7, full_html=False, include_plotlyjs=False, div_id='g-heatmap-semana', config={'displayModeBar': False})
 
     # =========================================================================
     # 8. 📎 NUEVO: Mensajes Multimedia / Eliminados por usuario
@@ -805,7 +805,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
     fig8 = px.bar(df_multimedia, x='Cantidad', y='Usuario', orientation='h', text='Cantidad', title='📎 Multimedia Enviado por Miembro', color='Cantidad', color_continuous_scale='purpor')
     fig8.update_traces(texttemplate='%{text:,}', textposition='outside', cliponaxis=False)
     fig8.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, height=550, margin=dict(t=50,b=20,l=140,r=70), xaxis=dict(visible=False), yaxis=dict(title=''))
-    g8 = pio.to_html(fig8, full_html=False, div_id='g-multimedia', config={'displayModeBar': False})
+    g8 = pio.to_html(fig8, full_html=False, include_plotlyjs=False, div_id='g-multimedia', config={'displayModeBar': False})
 
     # 8B. Mensajes Eliminados por usuario
     eliminados_por_usuario = df[df['Es_Eliminado']]['Autor'].value_counts().reindex(usuarios_top_15, fill_value=0)
@@ -816,7 +816,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
     fig8b = px.bar(df_eliminados, x='Cantidad', y='Usuario', orientation='h', text='Cantidad', title='🗑️ Mensajes Eliminados por Miembro', color='Cantidad', color_continuous_scale='burg')
     fig8b.update_traces(texttemplate='%{text:,}', textposition='outside', cliponaxis=False)
     fig8b.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, height=550, margin=dict(t=50,b=20,l=140,r=70), xaxis=dict(visible=False), yaxis=dict(title=''))
-    g8b = pio.to_html(fig8b, full_html=False, div_id='g-eliminados', config={'displayModeBar': False})
+    g8b = pio.to_html(fig8b, full_html=False, include_plotlyjs=False, div_id='g-eliminados', config={'displayModeBar': False})
 
     # =========================================================================
     # 9. ✍️ NUEVO: Longitud media de mensaje por usuario (solo texto real)
@@ -831,7 +831,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
     fig9 = px.bar(df_longitud, x='Caracteres', y='Usuario', orientation='h', text='Caracteres', title='✍️ Longitud Media de Mensaje por Miembro (caracteres)', color='Caracteres', color_continuous_scale='tealgrn')
     fig9.update_traces(textposition='outside', cliponaxis=False)
     fig9.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, height=550, margin=dict(t=50,b=20,l=140,r=70), xaxis=dict(visible=False), yaxis=dict(title=''))
-    g9 = pio.to_html(fig9, full_html=False, div_id='g-longitud', config={'displayModeBar': False})
+    g9 = pio.to_html(fig9, full_html=False, include_plotlyjs=False, div_id='g-longitud', config={'displayModeBar': False})
 
     # =========================================================================
     # 10. 😂 NUEVO: Ranking de Emojis más usados
@@ -848,7 +848,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
         fig10 = px.bar(df_emojis, x='Frecuencia', y='Emoji', orientation='h', text='Frecuencia', title='😂 Emojis Más Usados en el Grupo', color='Frecuencia', color_continuous_scale='sunsetdark')
         fig10.update_traces(texttemplate='%{text:,}', textposition='outside', cliponaxis=False)
         fig10.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, height=550, margin=dict(t=50,b=20,l=70,r=70), xaxis=dict(visible=False), yaxis=dict(title='', tickfont=dict(size=26)))
-        g10 = pio.to_html(fig10, full_html=False, div_id='g-emojis', config={'displayModeBar': False})
+        g10 = pio.to_html(fig10, full_html=False, include_plotlyjs=False, div_id='g-emojis', config={'displayModeBar': False})
 
     ranking_tabla = [{"usuario": u, "cantidad": m} for u, m in total_mensajes_usuario.items()]
 
