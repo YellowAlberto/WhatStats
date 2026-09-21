@@ -2,6 +2,7 @@ import re
 import os
 import io
 import base64
+import secrets
 import datetime
 from collections import Counter
 import pandas as pd
@@ -25,7 +26,7 @@ from reportlab.platypus import (
 )
 
 from fastapi import FastAPI, File, UploadFile, Request, Form
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -68,6 +69,32 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 os.makedirs("static", exist_ok=True)
+
+# =============================================================================
+# CACHÉ EN MEMORIA PARA DIFERIR LA GENERACIÓN DEL PDF
+# =============================================================================
+# El PDF (llamada a Gemini + renderizado de imágenes con matplotlib + maquetación
+# con reportlab) es la parte más lenta y pesada del análisis. En vez de generarlo
+# siempre en /analizar, guardamos aquí solo los agregados pequeños que necesita
+# (nunca el DataFrame completo ni los mensajes en crudo) y lo construimos bajo
+# demanda cuando el usuario pulsa "Generar informe PDF". Es una caché de corta
+# duración en memoria: se pierde si el proceso se reinicia (p. ej. tras estar
+# inactivo en el plan Free de Render), lo cual es aceptable aquí.
+MAX_INFORMES_EN_CACHE = 5
+CACHE_DATOS_PDF = {}  # token -> dict con los agregados necesarios para el PDF
+
+
+def _guardar_datos_pdf_en_cache(datos):
+    """Guarda los datos necesarios para generar el PDF y devuelve un token
+    de un solo uso para recuperarlos después. Si hay demasiados informes en
+    caché, descarta el más antiguo para no acumular memoria indefinidamente."""
+    token = secrets.token_urlsafe(16)
+    CACHE_DATOS_PDF[token] = datos
+    if len(CACHE_DATOS_PDF) > MAX_INFORMES_EN_CACHE:
+        token_mas_antiguo = next(iter(CACHE_DATOS_PDF))
+        del CACHE_DATOS_PDF[token_mas_antiguo]
+    return token
+
 
 # --- Patrones auxiliares reutilizados en varias partes del análisis ---
 FRASES_MULTIMEDIA = [
@@ -257,7 +284,7 @@ def _figura_mpl_base(figsize):
 
 def _guardar_mpl_a_bytes(fig):
     buf = io.BytesIO()
-    fig.savefig(buf, format='png', dpi=170, facecolor=_COLOR_FONDO_MPL, bbox_inches='tight')
+    fig.savefig(buf, format='png', dpi=130, facecolor=_COLOR_FONDO_MPL, bbox_inches='tight')
     plt.close(fig)
     buf.seek(0)
     return buf.getvalue()
@@ -760,7 +787,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
         plt.tight_layout()
 
         buf = io.BytesIO()
-        plt.savefig(buf, format='png', dpi=200, facecolor='#1E293B', edgecolor='none')
+        plt.savefig(buf, format='png', dpi=140, facecolor='#1E293B', edgecolor='none')
         buf.seek(0)
         g6_base64 = base64.b64encode(buf.getvalue()).decode('utf-8')
         plt.close(fig_mpl)
@@ -982,6 +1009,80 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
         "integrantes_omitidos": integrantes_omitidos,
     }
 
+    # El PDF (Gemini + imágenes matplotlib + reportlab) es lo más lento de generar,
+    # así que no lo construimos aquí: guardamos solo los agregados pequeños que
+    # necesita y lo generamos bajo demanda en /generar_pdf/{token} cuando el
+    # usuario pulsa el botón de descarga.
+    datos_pdf = {
+        "stats_para_ia": stats_para_ia,
+        "top_autores": top_autores,
+        "m_hora": m_hora,
+        "tabla_heatmap": tabla_heatmap,
+        "matriz_normalizada": matriz_normalizada,
+        "m_tiempo": m_tiempo,
+        "df_tiempo": df_tiempo,
+        "df_fantasma": df_fantasma,
+        "df_multimedia": df_multimedia,
+        "df_eliminados": df_eliminados,
+        "df_longitud": df_longitud,
+        "df_conceptos": df_conceptos,
+        "df_emojis": df_emojis if todos_los_emojis else None,
+        "g6_base64": g6_base64,
+    }
+    pdf_token = _guardar_datos_pdf_en_cache(datos_pdf)
+
+    return templates.TemplateResponse(
+        name="resultados.html",
+        context={
+            "total_mensajes": len(df),
+            "total_multimedia": total_multimedia,
+            "total_eliminados": total_eliminados,
+            "ranking": ranking_tabla,
+            "g1": g1, "g2": g2, "g3": g3, "g4": g4,
+            "g5_tiempo": g5_tiempo,
+            "g5_fantasma": g5_fantasma,
+            "g_palabras": g_palabras,
+            "g6": g6_base64,
+            "g7": g7,
+            "g8": g8,
+            "g8b": g8b,
+            "g9": g9,
+            "g10": g10,
+            "pdf_token": pdf_token,
+        },
+        request=request
+    )
+
+
+@app.get("/generar_pdf/{token}")
+def generar_pdf(token: str):
+    """Genera el informe PDF bajo demanda a partir de los datos guardados en
+    caché durante el /analizar correspondiente. Aquí es donde ocurre lo más
+    lento: la llamada a Gemini y el renderizado de las imágenes con matplotlib."""
+    datos_pdf = CACHE_DATOS_PDF.get(token)
+    if datos_pdf is None:
+        return HTMLResponse(
+            "<h2 style='color:white; font-family:sans-serif; text-align:center; margin-top:50px;'>"
+            "Este informe ya no está disponible (puede haber caducado si el servidor estuvo "
+            "inactivo un rato). Vuelve a analizar tu chat para generar un PDF nuevo.</h2>",
+            status_code=404,
+        )
+
+    stats_para_ia = datos_pdf["stats_para_ia"]
+    top_autores = datos_pdf["top_autores"]
+    m_hora = datos_pdf["m_hora"]
+    tabla_heatmap = datos_pdf["tabla_heatmap"]
+    matriz_normalizada = datos_pdf["matriz_normalizada"]
+    m_tiempo = datos_pdf["m_tiempo"]
+    df_tiempo = datos_pdf["df_tiempo"]
+    df_fantasma = datos_pdf["df_fantasma"]
+    df_multimedia = datos_pdf["df_multimedia"]
+    df_eliminados = datos_pdf["df_eliminados"]
+    df_longitud = datos_pdf["df_longitud"]
+    df_conceptos = datos_pdf["df_conceptos"]
+    df_emojis = datos_pdf["df_emojis"]
+    g6_base64 = datos_pdf["g6_base64"]
+
     resumen_ia = generar_resumen_ia(stats_para_ia)
 
     # =========================================================================
@@ -1083,7 +1184,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
         print(f"[PDF] No se pudo generar la gráfica 'longitud': {e}")
         imagenes_pdf["longitud"] = None
 
-    if todos_los_emojis:
+    if df_emojis is not None:
         try:
             # Nota: las fuentes estándar de matplotlib no siempre saben dibujar
             # emoji en color, así que aquí los mostramos numerados; el emoji
@@ -1112,29 +1213,19 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
 
     try:
         pdf_bytes = generar_informe_pdf(stats_para_ia, resumen_ia, imagenes_pdf)
-        pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
     except Exception as e:
         print(f"[PDF] Error generando el informe PDF: {e}")
-        pdf_base64 = None
+        return HTMLResponse(
+            "<h2 style='color:white; font-family:sans-serif; text-align:center; margin-top:50px;'>"
+            "Hubo un error generando el informe PDF. Inténtalo de nuevo en unos segundos.</h2>",
+            status_code=500,
+        )
 
-    return templates.TemplateResponse(
-        name="resultados.html",
-        context={
-            "total_mensajes": len(df),
-            "total_multimedia": total_multimedia,
-            "total_eliminados": total_eliminados,
-            "ranking": ranking_tabla,
-            "g1": g1, "g2": g2, "g3": g3, "g4": g4,
-            "g5_tiempo": g5_tiempo,
-            "g5_fantasma": g5_fantasma,
-            "g_palabras": g_palabras,
-            "g6": g6_base64,
-            "g7": g7,
-            "g8": g8,
-            "g8b": g8b,
-            "g9": g9,
-            "g10": g10,
-            "pdf_base64": pdf_base64,
-        },
-        request=request
+    # Un solo uso: liberamos la memoria en cuanto se ha generado el PDF
+    CACHE_DATOS_PDF.pop(token, None)
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": "attachment; filename=Informe_Analisis_WhatsApp.pdf"},
     )
