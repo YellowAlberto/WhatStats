@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Stats Web</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-slate-900 text-white min-h-screen flex flex-col justify-center items-center p-4 md:p-8">
+
+    <div class="max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 gap-8 bg-slate-800 p-6 md:p-8 rounded-3xl shadow-2xl border border-slate-700">
+
+        <div class="flex flex-col justify-center space-y-6 border-b md:border-b-0 md:border-r border-slate-700 pb-6 md:pb-0 md:pr-8">
+            <div>
+                <h2 class="text-xl font-bold text-teal-400 flex items-center gap-2">
+                    💡 ¿Cómo exportar tu chat?
+                </h2>
+                <p class="text-xs text-slate-400 mt-1">Sigue estos sencillos pasos desde tu teléfono móvil para conseguir el archivo .txt correcto.</p>
+            </div>
+
+            <div class="space-y-4 text-sm">
+                <div class="bg-slate-900/50 p-3.5 rounded-xl border border-slate-700/60">
+                    <span class="inline-block bg-teal-500/20 text-teal-300 text-xs font-bold px-2 py-0.5 rounded mb-1">Android</span>
+                    <ol class="list-decimal list-inside space-y-1 text-slate-300 text-xs">
+                        <li>Entra al chat o grupo de WhatsApp.</li>
+                        <li>Toca los <span class="font-semibold text-white">3 puntos</span> de arriba a la derecha.</li>
+                        <li>Selecciona <span class="font-semibold text-white">Más</span> y luego <span class="font-semibold text-white">Exportar chat</span>.</li>
+                        <li>Elige <span class="text-rose-400 font-bold">SIN ARCHIVOS</span></li>
+                        <li>Guarda el archivo en tu dispositivo o envíatelo.</li>
+                        <li>Extrae el archivo .txt y súbelo aquí para analizarlo.</li>
+                    </ol>
+                </div>
+
+                <div class="bg-slate-900/50 p-3.5 rounded-xl border border-slate-700/60">
+                    <span class="inline-block bg-sky-500/20 text-sky-300 text-xs font-bold px-2 py-0.5 rounded mb-1">iPhone (iOS)</span>
+                    <ol class="list-decimal list-inside space-y-1 text-slate-300 text-xs">
+                        <li>Entra al chat o grupo y toca el <span class="font-semibold text-white">nombre del grupo</span> arriba.</li>
+                        <li>Toca los 3 puntos de arriba a la derecha.</li>
+                        <li>Selecciona <span class="font-semibold text-white">Exportar chat</span>.</li>
+                        <li>Elige <span class="text-rose-400 font-bold">SIN ARCHIVOS</span></li>
+                        <li>Guarda el documento en la app <span class="font-semibold text-white">Archivos</span> de tu iPhone.</li>
+                        <li>Extrae el archivo .txt y súbelo aquí para analizarlo.</li>
+                    </ol>
+                </div>
+            </div>
+
+            <p class="text-[11px] text-amber-400/90 leading-relaxed bg-amber-500/10 p-3 rounded-xl border border-amber-500/20">
+                **Nota de Privacidad:** Tu archivo se procesa de forma temporal en el servidor únicamente para generar las estadísticas de esta página. No guardamos el chat, no lo almacenamos en ninguna base de datos ni lo compartimos con terceros; una vez generado el panel, los datos se descartan. Para el resumen del informe PDF, se envían <span class="font-semibold text-white">estadísticas agregadas</span> (recuentos, porcentajes, nombres de quienes ya participan en el chat) a la API de Gemini (Google) — nunca los mensajes originales.
+            </p>
+        </div>
+
+        <div class="flex flex-col justify-center space-y-6">
+            <div class="text-center md:text-left">
+                <h1 class="text-2xl font-black tracking-tight text-white">
+                    📊 Analizador <span class="text-teal-400">WhatsApp Web</span>
+                </h1>
+                <p class="text-sm text-slate-400 mt-1">Genera estadísticas, rankings de actividad e historiales de convivencia al instante.</p>
+            </div>
+
+            <form action="/analizar" method="post" enctype="multipart/form-data" class="space-y-4" id="analisisForm">
+
+                <div id="dropzone" class="group border-2 border-dashed border-slate-600 hover:border-teal-500 rounded-2xl p-8 text-center transition cursor-pointer relative bg-slate-900/30">
+                    <input type="file" id="fileInput" name="file" accept=".txt" required class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+
+                    <div id="fileIcon" class="mx-auto w-12 h-12 mb-3 rounded-full bg-slate-700 flex items-center justify-center text-xl text-slate-400 group-hover:bg-teal-500 group-hover:text-slate-950 transition duration-300">
+                        📄
+                    </div>
+
+                    <p id="fileText" class="text-slate-200 font-bold text-sm group-hover:text-teal-400 transition">Haz clic aquí o arrastra tu chat.txt</p>
+                    <p id="fileSubtext" class="text-xs text-slate-500 mt-1">Solo se admiten archivos de extensión de texto plano (.txt)</p>
+                </div>
+
+                <div class="flex flex-col space-y-1">
+                    <label for="customWords" class="text-xs font-bold text-slate-400 uppercase tracking-wider">🏷️ Palabras Clave a Buscar (Opcional):</label>
+                    <input type="text" id="customWords" name="custom_words" placeholder="Ej: lol, Kebab, Futbol, Llorar, TFG" class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-teal-400 text-slate-100 placeholder-slate-600 transition">
+                    <p class="text-[11px] text-slate-500">Separa las palabras por comas. Si lo dejas vacío se usará la lista de fábrica.</p>
+                </div>
+
+                <button type="submit" id="submitBtn" class="w-full bg-slate-700 text-slate-400 font-black py-3.5 px-4 rounded-xl transition shadow-lg tracking-wide cursor-not-allowed text-sm transform flex items-center justify-center gap-2">
+                    <span id="submitBtnText">ESPERANDO ARCHIVO...</span>
+                </button>
+                <p id="loadingHint" class="hidden text-[11px] text-slate-500 text-center">⏳ Esto puede tardar unos segundos (generamos también tu informe en PDF con resumen de IA). No cierres ni recargues la página.</p>
+            </form>
+        </div>
+
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const dropzone = document.getElementById('dropzone');
+        const fileIcon = document.getElementById('fileIcon');
+        const fileText = document.getElementById('fileText');
+        const fileSubtext = document.getElementById('fileSubtext');
+        const submitBtn = document.getElementById('submitBtn');
+        const submitBtnText = document.getElementById('submitBtnText');
+        const loadingHint = document.getElementById('loadingHint');
+        const form = document.getElementById('analisisForm');
+
+        fileInput.addEventListener('change', function() {
+            if (fileInput.files.length > 0) {
+                const nombreArchivo = fileInput.files[0].name;
+
+                dropzone.classList.remove('border-slate-600', 'hover:border-teal-500');
+                dropzone.classList.add('border-teal-500', 'bg-teal-950/20');
+
+                fileIcon.classList.remove('bg-slate-700', 'text-slate-400');
+                fileIcon.classList.add('bg-teal-500', 'text-slate-950');
+                fileIcon.innerHTML = "✅";
+
+                fileText.classList.add('text-teal-400');
+                fileText.innerHTML = `¡Archivo cargado con éxito!`;
+                fileSubtext.innerHTML = `📌 <span class="text-slate-200 font-mono font-semibold">${nombreArchivo}</span>`;
+
+                submitBtn.classList.remove('bg-slate-700', 'text-slate-400', 'cursor-not-allowed');
+                submitBtn.classList.add('bg-teal-400', 'text-slate-950', 'hover:bg-teal-500', 'cursor-pointer', 'active:scale-[0.98]');
+                submitBtnText.innerHTML = "ANALIZAR GRUPO AHORA";
+            }
+        });
+
+        // Indicador de carga: al enviar el formulario, deshabilita el botón y muestra un spinner
+        form.addEventListener('submit', function() {
+            if (fileInput.files.length === 0) return;
+
+            submitBtn.disabled = true;
+            submitBtn.classList.add('cursor-wait', 'opacity-90');
+            submitBtn.classList.remove('active:scale-[0.98]');
+
+            // Damos diseño Flexbox y alineación horizontal al span directamente
+            submitBtnText.classList.add('flex', 'items-center', 'justify-center', 'gap-2.5');
+
+            submitBtnText.innerHTML = `
+                <svg class="animate-spin h-4 w-4 text-slate-950" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                <span>ANALIZANDO CHAT...</span>
+            `;
+            
+            submitBtn.classList.add('flex', 'items-center', 'justify-center');
+            loadingHint.classList.remove('hidden');
+        });
+    </script>
+
+</body>
+</html>

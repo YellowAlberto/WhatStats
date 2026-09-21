@@ -1,0 +1,21 @@
+# Entorno y secretos
+.env
+config.clauderc
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+env/
+
+# Imágenes generadas en tiempo de ejecución (se regeneran solas al analizar un chat)
+static/*.png
+!static/.gitkeep
+
+# Editor / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

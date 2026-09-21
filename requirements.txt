@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+jinja2
+python-multipart
+pandas
+numpy
+matplotlib
+seaborn
+plotly
+reportlab
+google-genai
+python-dotenv

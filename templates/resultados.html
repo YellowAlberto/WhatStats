@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Estadístico Completo</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        .scrollbar-none::-webkit-scrollbar { display: none; }
+        .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8">
+    <div class="max-w-7xl mx-auto">
+
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-extrabold text-teal-400 tracking-tight">📈 Panel de Análisis Avanzado</h1>
+            <a href="/" class="bg-slate-800 hover:bg-slate-700 text-sm px-4 py-2 rounded-xl border border-slate-700 transition font-medium">⬅ Analizar otro chat</a>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 flex items-center justify-between shadow-lg">
+                <div>
+                    <p class="text-slate-400 uppercase text-xs tracking-wider font-semibold">Total de Mensajes Extraídos</p>
+                    <h2 class="text-5xl font-black text-white mt-1">{{ "{:,}".format(total_mensajes) }}</h2>
+                </div>
+                <span class="text-4xl opacity-60">💬</span>
+            </div>
+            <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 flex items-center justify-between shadow-lg">
+                <div>
+                    <p class="text-slate-400 uppercase text-xs tracking-wider font-semibold">Multimedia Enviado</p>
+                    <h2 class="text-5xl font-black text-white mt-1">{{ "{:,}".format(total_multimedia) }}</h2>
+                </div>
+                <span class="text-4xl opacity-60">📎</span>
+            </div>
+            <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 flex items-center justify-between shadow-lg">
+                <div>
+                    <p class="text-slate-400 uppercase text-xs tracking-wider font-semibold">Mensajes Eliminados</p>
+                    <h2 class="text-5xl font-black text-white mt-1">{{ "{:,}".format(total_eliminados) }}</h2>
+                </div>
+                <span class="text-4xl opacity-60">🗑️</span>
+            </div>
+        </div>
+
+        {% if pdf_base64 %}
+        <a href="data:application/pdf;base64,{{ pdf_base64 }}" download="Informe_Analisis_WhatsApp.pdf"
+           class="mb-8 w-full flex items-center justify-center gap-3 bg-gradient-to-r from-teal-500 to-teal-400 hover:from-teal-400 hover:to-teal-300 text-slate-950 font-black py-4 px-6 rounded-2xl transition shadow-lg tracking-wide cursor-pointer text-sm">
+            📄 Descargar Informe PDF Completo (con explicaciones y resumen IA)
+        </a>
+        {% endif %}
+
+        <p class="text-sm text-slate-400 text-center mb-6">
+            ✨ Despliega el menú horizontal para descubrir todas las métricas avanzadas disponibles. Usa las flechas de los lados para avanzar.
+        </p>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+            <div class="lg:col-span-2 flex flex-col space-y-4">
+
+                <div class="relative bg-slate-900 rounded-xl p-1 border border-slate-800 overflow-hidden">
+                    <button id="scroll-left-indicator" onclick="scrollMenu('izq')" class="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-slate-900 via-slate-900/90 to-transparent z-40 flex items-center justify-start pl-2 opacity-0 transition-all duration-300 pointer-events-none cursor-pointer group">
+                        <span class="text-teal-400 text-xs bg-slate-800 border border-slate-700 p-1.5 rounded-full shadow-md group-hover:scale-110 transition">◀</span>
+                    </button>
+
+                    <div id="tabs-container" class="flex overflow-x-auto scrollbar-none gap-2 pb-px scroll-smooth px-2">
+                        <button onclick="activarPestana('pestana-ranking', this)" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-teal-400 text-teal-400 whitespace-nowrap transition cursor-pointer">
+                            📊 Miembros Activos
+                        </button>
+                        <button onclick="activarPestana('pestana-horas', this)" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-400 hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
+                            🕒 Actividad Horaria
+                        </button>
+                        <button onclick="activarPestana('pestana-heatmap', this)" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-400 hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
+                            🗓️ Día × Hora
+                        </button>
+                        <button onclick="activarPestana('pestana-matriz', this)" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-400 hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
+                            🧩 Matriz de Afinidad
+                        </button>
+                        <button onclick="activarPestana('pestana-evolucion', this)" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-400 hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
+                            📅 Evolución Anual
+                        </button>
+                        <button onclick="activarPestana('pestana-tiempo', this)" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-400 hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
+                            ⏱️ Tiempos de Respuesta
+                        </button>
+                        <button onclick="activarPestana('pestana-fantasma', this)" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-400 hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
+                            👻 Mensajes Fantasma
+                        </button>
+                        <button onclick="activarPestana('pestana-multimedia', this)" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-400 hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
+                            📎 Multimedia
+                        </button>
+                        <button onclick="activarPestana('pestana-eliminados', this)" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-400 hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
+                            🗑️ Eliminados
+                        </button>
+                        <button onclick="activarPestana('pestana-longitud', this)" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-400 hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
+                            ✍️ Longitud de Mensaje
+                        </button>
+                        {% if g10 %}
+                        <button onclick="activarPestana('pestana-emojis', this)" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-400 hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
+                            😂 Emojis
+                        </button>
+                        {% endif %}
+                        <button onclick="activarPestana('pestana-palabras', this)" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-400 hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
+                            🏷️ Palabras Clave
+                        </button>
+                        {% if g6 %}
+                        <button onclick="activarPestana('pestana-burbujas', this)" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-400 hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
+                            🔮 Mapa de Conceptos
+                        </button>
+                        {% endif %}
+                    </div>
+
+                    <button id="scroll-right-indicator" onclick="scrollMenu('der')" class="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-slate-900 via-slate-900/95 to-transparent z-40 flex items-center justify-end pr-2 transition-all duration-300 pointer-events-auto cursor-pointer group">
+                        <span class="text-teal-400 text-xs bg-slate-800 border border-slate-700 py-1 px-2 rounded-xl shadow-md group-hover:scale-105 transition tracking-wider flex items-center gap-1 font-bold">▶</span>
+                    </button>
+                </div>
+
+                <div class="mt-4">
+
+                    <div id="pestana-ranking" class="tab-content bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col justify-between">
+                        <div class="w-full min-h-[500px] overflow-hidden rounded-xl">{{ g1 | safe }}</div>
+                        <button onclick="descargarPlotly('g-ranking', 'Ranking_Mensajes')" class="mt-6 w-full bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Gráfico de Ranking (PNG)</button>
+                    </div>
+
+                    <div id="pestana-horas" class="tab-content hidden bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col justify-between">
+                        <div class="w-full min-h-[500px] overflow-hidden rounded-xl">{{ g2 | safe }}</div>
+                        <button onclick="descargarPlotly('g-horas', 'Actividad_Horaria')" class="mt-6 w-full bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Distribución Horaria (PNG)</button>
+                    </div>
+
+                    <div id="pestana-heatmap" class="tab-content hidden bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col justify-between">
+                        <div class="w-full min-h-[450px] overflow-hidden rounded-xl">{{ g7 | safe }}</div>
+                        <button onclick="descargarPlotly('g-heatmap-semana', 'Heatmap_Dia_Hora')" class="mt-6 w-full bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Mapa de Calor (PNG)</button>
+                    </div>
+
+                    <div id="pestana-matriz" class="tab-content hidden bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col justify-between">
+                        <div class="w-full min-h-[550px] overflow-hidden rounded-xl">{{ g3 | safe }}</div>
+                        <button onclick="descargarPlotly('g-matriz', 'Matriz_Afinidad_Cruzada')" class="mt-6 w-full bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Matriz de Afinidad (PNG)</button>
+                    </div>
+
+                    <div id="pestana-evolucion" class="tab-content hidden bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col justify-between">
+                        <div class="w-full min-h-[500px] overflow-hidden rounded-xl">{{ g4 | safe }}</div>
+                        <button onclick="descargarPlotly('g-evolucion', 'Evolucion_Anual')" class="mt-6 w-full bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Evolución Anual (PNG)</button>
+                    </div>
+
+                    <div id="pestana-tiempo" class="tab-content hidden bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col justify-between">
+                        <div class="w-full min-h-[500px] overflow-hidden rounded-xl">{{ g5_tiempo | safe }}</div>
+                        <button onclick="descargarPlotly('g-tiempo', 'Tiempos_Respuesta')" class="mt-6 w-full bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Tiempos de Respuesta (PNG)</button>
+                    </div>
+
+                    <div id="pestana-fantasma" class="tab-content hidden bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col justify-between">
+                        <div class="w-full min-h-[500px] overflow-hidden rounded-xl">{{ g5_fantasma | safe }}</div>
+                        <button onclick="descargarPlotly('g-fantasma', 'Mensajes_Fantasma')" class="mt-6 w-full bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Mensajes Fantasma (PNG)</button>
+                    </div>
+
+                    <div id="pestana-multimedia" class="tab-content hidden bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col justify-between">
+                        <div class="w-full min-h-[550px] overflow-hidden rounded-xl">{{ g8 | safe }}</div>
+                        <button onclick="descargarPlotly('g-multimedia', 'Multimedia_Por_Usuario')" class="mt-6 w-full bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Gráfico de Multimedia (PNG)</button>
+                    </div>
+
+                    <div id="pestana-eliminados" class="tab-content hidden bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col justify-between">
+                        <div class="w-full min-h-[550px] overflow-hidden rounded-xl">{{ g8b | safe }}</div>
+                        <button onclick="descargarPlotly('g-eliminados', 'Mensajes_Eliminados')" class="mt-6 w-full bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Gráfico de Eliminados (PNG)</button>
+                    </div>
+
+                    <div id="pestana-longitud" class="tab-content hidden bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col justify-between">
+                        <div class="w-full min-h-[550px] overflow-hidden rounded-xl">{{ g9 | safe }}</div>
+                        <button onclick="descargarPlotly('g-longitud', 'Longitud_Media_Mensaje')" class="mt-6 w-full bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Longitud de Mensaje (PNG)</button>
+                    </div>
+
+                    {% if g10 %}
+                    <div id="pestana-emojis" class="tab-content hidden bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col justify-between">
+                        <div class="w-full min-h-[550px] overflow-hidden rounded-xl">{{ g10 | safe }}</div>
+                        <button onclick="descargarPlotly('g-emojis', 'Ranking_Emojis')" class="mt-6 w-full bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Ranking de Emojis (PNG)</button>
+                    </div>
+                    {% endif %}
+
+                    <div id="pestana-palabras" class="tab-content hidden bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col justify-between">
+                        <div class="w-full min-h-[500px] overflow-hidden rounded-xl">{{ g_palabras | safe }}</div>
+                        <button onclick="descargarPlotly('g-palabras', 'Frecuencia_Palabras')" class="mt-6 w-full bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Frecuencia de Palabras (PNG)</button>
+                    </div>
+
+                    {% if g6 %}
+                    <div id="pestana-burbujas" class="tab-content hidden bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col justify-between">
+                        <div class="text-center w-full">
+                            <h4 class="text-base font-bold text-slate-200 mb-4">🔮 Densidad Semántica: Análisis de las 100 palabras clave</h4>
+                            <img id="img-burbujas" src="data:image/png;base64,{{ g6 }}" alt="Packed Bubble Chart" class="w-full max-w-3xl mx-auto rounded-2xl border border-slate-700 shadow-lg">
+                        </div>
+                        <a id="btn-burbujas" download="Mapa_Burbujas_Conceptos.png" href="data:image/png;base64,{{ g6 }}" class="mt-6 w-full flex items-center justify-center bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide text-center">📥 Guardar Mapa de Burbujas (PNG)</a>
+                    </div>
+                    {% endif %}
+
+                </div>
+            </div>
+
+            <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl h-fit">
+                <h3 class="text-lg font-bold mb-4 text-slate-200 flex items-center gap-2">🏆 Tabla Completa de Posiciones</h3>
+                <div class="overflow-x-auto max-h-[640px] scrollbar-thin">
+                    <table class="w-full text-left">
+                        <thead class="sticky top-0 bg-slate-800 z-10">
+                            <tr class="border-b border-slate-700 text-slate-400 text-sm">
+                                <th class="pb-3 font-semibold">Miembro</th>
+                                <th class="pb-3 text-right font-semibold">Mensajes</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-700/50">
+                            {% for item in ranking %}
+                            <tr class="hover:bg-slate-700/30 transition text-sm">
+                                <td class="py-3 font-medium text-slate-300">{{ item.usuario }}</td>
+                                <td class="py-3 text-right font-bold text-teal-400">{{ "{:,}".format(item.cantidad) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        function activarPestana(pestanaId, botonActivo) {
+            const contenidos = document.querySelectorAll('.tab-content');
+            contenidos.forEach(c => c.classList.add('hidden'));
+
+            document.getElementById(pestanaId).classList.remove('hidden');
+
+            const botones = document.querySelectorAll('.tab-btn');
+            botones.forEach(b => {
+                b.classList.remove('border-teal-400', 'text-teal-400');
+                b.classList.add('border-transparent', 'text-slate-400', 'hover:text-slate-200');
+            });
+
+            botonActivo.classList.remove('border-transparent', 'text-slate-400', 'hover:text-slate-200');
+            botonActivo.classList.add('border-teal-400', 'text-teal-400');
+
+            window.dispatchEvent(new Event('resize'));
+        }
+
+        function descargarPlotly(divId, filename) {
+            const el = document.getElementById(divId).querySelector('.plotly-graph-div');
+            if(el) {
+                Plotly.downloadImage(el, {
+                    format: 'png',
+                    width: 1400,
+                    height: 700,
+                    filename: filename
+                });
+            }
+        }
+
+        const container = document.getElementById('tabs-container');
+        const leftIndicator = document.getElementById('scroll-left-indicator');
+        const rightIndicator = document.getElementById('scroll-right-indicator');
+
+        function scrollMenu(direccion) {
+            const avance = 200;
+            if (direccion === 'izq') {
+                container.scrollLeft -= avance;
+            } else {
+                container.scrollLeft += avance;
+            }
+        }
+
+        function actualizarIndicadores() {
+            const scrollLeft = container.scrollLeft;
+            const maxScrollable = container.scrollWidth - container.clientWidth;
+
+            if (scrollLeft > 5) {
+                leftIndicator.classList.remove('opacity-0', 'pointer-events-none');
+                leftIndicator.classList.add('opacity-100', 'pointer-events-auto');
+            } else {
+                leftIndicator.classList.remove('opacity-100', 'pointer-events-auto');
+                leftIndicator.classList.add('opacity-0', 'pointer-events-none');
+            }
+
+            if (scrollLeft >= maxScrollable - 5) {
+                rightIndicator.classList.remove('opacity-100', 'pointer-events-auto');
+                rightIndicator.classList.add('opacity-0', 'pointer-events-none');
+            } else {
+                rightIndicator.classList.remove('opacity-0', 'pointer-events-none');
+                rightIndicator.classList.add('opacity-100', 'pointer-events-auto');
+            }
+        }
+
+        container.addEventListener('scroll', actualizarIndicadores);
+        window.addEventListener('resize', actualizarIndicadores);
+
+        document.addEventListener("DOMContentLoaded", () => {
+            setTimeout(actualizarIndicadores, 300);
+        });
+    </script>
+</body>
+</html>
