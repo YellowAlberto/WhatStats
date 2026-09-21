@@ -131,10 +131,16 @@ DIAS_SEMANA_ES = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado
 def procesar_chat_whatsapp(contenido_bytes):
     """Función de lectura corregida y universal para procesar el chat sin residuos trim."""
     # EXPRESIONES REGULARES 100% LIMPIAS Y REVISADAS SIN RESIDUOS "TRIM"
+    # La hora puede venir en formato 24h ("22:30") o 12h con AM/PM pegado o con
+    # espacio ("10:30 PM", "10:30PM", "10:30 p. m."). Si no se captura ese
+    # sufijo como parte de la hora, se cuela al principio del nombre del autor
+    # (p. ej. "PM - Juan" se lee como autor "PM - Juan") y además pandas
+    # interpreta mal la hora real (medianoche acaba pareciendo mediodía).
+    SUFIJO_AMPM = r'(?:\s?[AaPp]\.?\s?[Mm]\.?)?'
     patrones = [
-        r'^\[?(\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4})(?:,\s|\s)(\d{1,2}:\d{2})(?::\d{2})?\]?\s(?:-\s)?([^:]+):\s(.*)$',
-        r'^(\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4})(?:,\s|\s|-|\s-)\s*(\d{1,2}:\d{2})(?::\d{2})?\s*-\s*([^:]+):\s(.*)$',
-        r'^(\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4})\s+(\d{1,2}:\d{2})\s+-\s+([^:]+):\s(.*)$'
+        r'^\[?(\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4})(?:,\s|\s)(\d{1,2}:\d{2}(?::\d{2})?' + SUFIJO_AMPM + r')\]?\s(?:-\s)?([^:]+):\s(.*)$',
+        r'^(\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4})(?:,\s|\s|-|\s-)\s*(\d{1,2}:\d{2}(?::\d{2})?' + SUFIJO_AMPM + r')\s*-\s*([^:]+):\s(.*)$',
+        r'^(\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4})\s+(\d{1,2}:\d{2}' + SUFIJO_AMPM + r')\s+-\s+([^:]+):\s(.*)$'
     ]
 
     frases_sistema = [
@@ -302,6 +308,7 @@ def grafico_barh_mpl(categorias, valores, titulo, color='#14B8A6', fmt='{:,.0f}'
     barras = ax.barh(categorias, valores, color=colores_barras)
     ax.set_title(titulo, color='white', fontsize=13, fontweight='bold', pad=14)
     ax.set_xticks([])
+    ax.tick_params(axis='y', pad=8)  # un poco de aire entre los nombres y las barras
     maximo = max(valores) if len(valores) and max(valores) > 0 else 1
     for barra, valor in zip(barras, valores):
         ax.text(barra.get_width() + maximo * 0.015, barra.get_y() + barra.get_height() / 2,
@@ -666,7 +673,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
     top_autores.columns = ['Usuario', 'Mensajes']
     fig1 = px.bar(top_autores.sort_values('Mensajes'), x='Mensajes', y='Usuario', orientation='h', text='Mensajes', title='Miembros más activos', color='Mensajes', color_continuous_scale='tealgrn')
     fig1.update_traces(texttemplate='%{text:,}', textposition='outside', cliponaxis=False)
-    fig1.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, margin=dict(t=50,b=20,l=140,r=80), xaxis=dict(visible=False), yaxis=dict(title=''))
+    fig1.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, margin=dict(t=50,b=20,l=140,r=80), xaxis=dict(visible=False), yaxis=dict(title='', ticksuffix='  '))
     g1 = pio.to_html(fig1, full_html=False, include_plotlyjs=False, div_id='g-ranking', config={'displayModeBar': False})
     del fig1
 
@@ -730,7 +737,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
 
     fig5_tiempo = px.bar(df_tiempo, x='Tiempo Respuesta (min)', y='Usuario', orientation='h', title='⏱️ Tiempo de Respuesta Medio por Miembro', color='Tiempo Respuesta (min)', color_continuous_scale='tealgrn', text='Texto_Formateado')
     fig5_tiempo.update_traces(textposition='outside', cliponaxis=False)
-    fig5_tiempo.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, height=550, margin=dict(t=50, b=40, l=140, r=80), xaxis=dict(visible=False), yaxis=dict(title=''))
+    fig5_tiempo.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, height=550, margin=dict(t=50, b=40, l=140, r=80), xaxis=dict(visible=False), yaxis=dict(title='', ticksuffix='  '))
     g5_tiempo = pio.to_html(fig5_tiempo, full_html=False, include_plotlyjs=False, div_id='g-tiempo', config={'displayModeBar': False})
     del fig5_tiempo
 
@@ -740,7 +747,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
 
     fig5_fantasma = px.bar(df_fantasma, x='Mensajes Fantasma (%)', y='Usuario', orientation='h', text='Texto_Porcentaje', title='👻 Fantasmas del Grupo: Porcentaje de Vistos', color='Mensajes Fantasma (%)', color_continuous_scale='rdpu')
     fig5_fantasma.update_traces(textposition='outside', cliponaxis=False)
-    fig5_fantasma.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, height=550, margin=dict(t=50, b=40, l=140, r=70), xaxis=dict(visible=False), yaxis=dict(title=''))
+    fig5_fantasma.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, height=550, margin=dict(t=50, b=40, l=140, r=70), xaxis=dict(visible=False), yaxis=dict(title='', ticksuffix='  '))
     g5_fantasma = pio.to_html(fig5_fantasma, full_html=False, include_plotlyjs=False, div_id='g-fantasma', config={'displayModeBar': False})
     del fig5_fantasma
 
@@ -816,7 +823,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
 
     fig_palabras = px.bar(df_conceptos, x='Frecuencia', y='Concepto', orientation='h', text='Frecuencia', title='Frecuencia de palabras clave personalizadas', color='Frecuencia', color_continuous_scale='tealgrn', custom_data=['Detalle_Autores'])
     fig_palabras.update_traces(texttemplate='%{text:,}', textposition='outside', cliponaxis=False, hovertemplate="<b>Palabra:</b> %{y}<br><b>Total en grupo:</b> %{x} veces<br><br><b>Desglose de uso:</b><br>%{customdata[0]}<extra></extra>")
-    fig_palabras.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, margin=dict(t=50,b=20,l=100,r=70), xaxis=dict(visible=False), yaxis=dict(title=''))
+    fig_palabras.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, margin=dict(t=50,b=20,l=100,r=70), xaxis=dict(visible=False), yaxis=dict(title='', ticksuffix='  '))
     g_palabras = pio.to_html(fig_palabras, full_html=False, include_plotlyjs=False, div_id='g-palabras', config={'displayModeBar': False})
     del fig_palabras
 
@@ -928,7 +935,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
 
     fig8 = px.bar(df_multimedia, x='Cantidad', y='Usuario', orientation='h', text='Cantidad', title='📎 Multimedia Enviado por Miembro', color='Cantidad', color_continuous_scale='purpor')
     fig8.update_traces(texttemplate='%{text:,}', textposition='outside', cliponaxis=False)
-    fig8.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, height=550, margin=dict(t=50,b=20,l=140,r=70), xaxis=dict(visible=False), yaxis=dict(title=''))
+    fig8.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, height=550, margin=dict(t=50,b=20,l=140,r=70), xaxis=dict(visible=False), yaxis=dict(title='', ticksuffix='  '))
     g8 = pio.to_html(fig8, full_html=False, include_plotlyjs=False, div_id='g-multimedia', config={'displayModeBar': False})
     del fig8
 
@@ -940,7 +947,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
 
     fig8b = px.bar(df_eliminados, x='Cantidad', y='Usuario', orientation='h', text='Cantidad', title='🗑️ Mensajes Eliminados por Miembro', color='Cantidad', color_continuous_scale='burg')
     fig8b.update_traces(texttemplate='%{text:,}', textposition='outside', cliponaxis=False)
-    fig8b.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, height=550, margin=dict(t=50,b=20,l=140,r=70), xaxis=dict(visible=False), yaxis=dict(title=''))
+    fig8b.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, height=550, margin=dict(t=50,b=20,l=140,r=70), xaxis=dict(visible=False), yaxis=dict(title='', ticksuffix='  '))
     g8b = pio.to_html(fig8b, full_html=False, include_plotlyjs=False, div_id='g-eliminados', config={'displayModeBar': False})
     del fig8b
 
@@ -956,7 +963,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
 
     fig9 = px.bar(df_longitud, x='Caracteres', y='Usuario', orientation='h', text='Caracteres', title='✍️ Longitud Media de Mensaje por Miembro (caracteres)', color='Caracteres', color_continuous_scale='tealgrn')
     fig9.update_traces(textposition='outside', cliponaxis=False)
-    fig9.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, height=550, margin=dict(t=50,b=20,l=140,r=70), xaxis=dict(visible=False), yaxis=dict(title=''))
+    fig9.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, height=550, margin=dict(t=50,b=20,l=140,r=70), xaxis=dict(visible=False), yaxis=dict(title='', ticksuffix='  '))
     g9 = pio.to_html(fig9, full_html=False, include_plotlyjs=False, div_id='g-longitud', config={'displayModeBar': False})
     del fig9
 
@@ -974,7 +981,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
 
         fig10 = px.bar(df_emojis, x='Frecuencia', y='Emoji', orientation='h', text='Frecuencia', title='😂 Emojis Más Usados en el Grupo', color='Frecuencia', color_continuous_scale='sunsetdark')
         fig10.update_traces(texttemplate='%{text:,}', textposition='outside', cliponaxis=False)
-        fig10.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, height=550, margin=dict(t=50,b=20,l=70,r=70), xaxis=dict(visible=False), yaxis=dict(title='', tickfont=dict(size=26)))
+        fig10.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, height=550, margin=dict(t=50,b=20,l=70,r=70), xaxis=dict(visible=False), yaxis=dict(title='', tickfont=dict(size=26), ticksuffix='  '))
         g10 = pio.to_html(fig10, full_html=False, include_plotlyjs=False, div_id='g-emojis', config={'displayModeBar': False})
         del fig10
 
