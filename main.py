@@ -350,9 +350,11 @@ def grafico_heatmap_mpl(datos_2d, x_labels, y_labels, titulo, cmap='YlGnBu', fig
 
 def generar_resumen_ia(stats):
     """Genera un resumen del 'carácter' del grupo usando la API de Gemini (Google),
-    a partir únicamente de estadísticas agregadas y curiosidades ya calculadas
-    en Python (nunca se envían mensajes individuales, salvo la LONGITUD del
-    más largo, nunca su contenido)."""
+    a partir de estadísticas agregadas y curiosidades ya calculadas en Python,
+    más un puñado de fragmentos de texto REALES pero ANÓNIMOS (sin decir quién
+    los escribió) ligados a las palabras clave más repetidas, para que el
+    resumen pueda referirse a cosas concretas que se dijeron en el chat. Nunca
+    se envía el chat completo ni se identifica al autor de cada fragmento."""
     if CLIENTE_GEMINI is None:
         return ("No se ha generado un resumen con IA porque el servidor no tiene "
                 "configurada la clave GEMINI_API_KEY (o GOOGLE_API_KEY).")
@@ -372,6 +374,13 @@ def generar_resumen_ia(stats):
         nota_omitidos = (f"\n(Hay {stats['integrantes_omitidos']} integrantes más, muy poco activos, que no "
                          f"aparecen en este listado individual: puedes referirte a ellos como grupo, de pasada, "
                          f"sin inventarles datos.)")
+
+    fragmentos_por_palabra = stats.get('fragmentos_por_palabra', [])
+    bloques_fragmentos = []
+    for entrada in fragmentos_por_palabra:
+        citas = "; ".join(f'"{frag}"' for frag in entrada['fragmentos'])
+        bloques_fragmentos.append(f"- Sobre \"{entrada['palabra']}\": {citas}")
+    texto_fragmentos = "\n".join(bloques_fragmentos) if bloques_fragmentos else "(no hay fragmentos disponibles)"
 
     # Cuantas más personas haya que mencionar, más margen de tokens/palabras hace falta
     max_tokens = min(4000, 700 + 25 * len(perfiles))
@@ -401,17 +410,29 @@ CURIOSIDADES Y "PERSONAJES" DEL GRUPO (la materia prima para las anécdotas dest
 FICHA INDIVIDUAL DE CADA INTEGRANTE (obligatorio usarla, ver instrucción final)
 {listado_integrantes}{nota_omitidos}
 
+FRAGMENTOS REALES Y ANÓNIMOS DEL CHAT (frases textuales, SIN decir quién las escribió)
+Están agrupados por la palabra clave que contienen. Puedes citarlos o parafrasearlos para que el resumen
+suene concreto y "de este chat en particular", nunca genérico.
+{texto_fragmentos}
+
 Con estos datos, escribe un resumen DIVERTIDO Y ESPECÍFICO en español, en prosa y sin listas ni encabezados,
 que suene como si conocieras de verdad al grupo. Usa 4 o 5 de las curiosidades de arriba como titulares o
 anécdotas graciosas (el búho nocturno, el rey del visto, la palabra estrella, la racha de días, el mensaje
 kilométrico...). Tono cercano y con humor ligero, tipo "resumen anual estilo Spotify Wrapped pero de WhatsApp".
 
-REQUISITO IMPRESCINDIBLE: además de esas anécdotas destacadas, tienes que dedicarle al menos una mención
+REQUISITO IMPRESCINDIBLE #1: además de esas anécdotas destacadas, tienes que dedicarle al menos una mención
 breve y específica a CADA UNO de los integrantes de la "ficha individual" de arriba (aunque solo sea una
 frase corta usando su emoji favorito, su hora más activa o su longitud media de mensaje) — nadie de esa
 lista puede quedarse sin nombrar. Si el grupo es grande, ajusta la longitud del texto y agrupa a varias
-personas en la misma frase si hace falta, pero no omitas a nadie de la lista. No inventes hechos, cifras
-ni nombres que no estén en los datos de arriba. Escribe en prosa corrida, sin emojis ni símbolos decorativos."""
+personas en la misma frase si hace falta, pero no omitas a nadie de la lista.
+
+REQUISITO IMPRESCINDIBLE #2: incorpora de forma natural 2 o 3 de los "FRAGMENTOS REALES" de arriba (citados
+entre comillas o parafraseados) en algún punto del texto, como si recordaras anécdotas concretas del grupo.
+NUNCA digas ni insinúes quién escribió cada fragmento — cítalos como algo que "se dijo en el grupo", no como
+una frase de una persona concreta.
+
+No inventes hechos, cifras, nombres ni citas que no estén en los datos de arriba. Escribe en prosa corrida,
+sin emojis ni símbolos decorativos."""
 
     # Gemini devuelve 503 "UNAVAILABLE" bastante a menudo cuando el modelo está
     # saturado; casi siempre basta con reintentar a los pocos segundos. En vez
@@ -755,6 +776,42 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
         registros_conceptos.append({'Concepto': palabra, 'Frecuencia': total_veces, 'Detalle_Autores': info_hover})
 
     df_conceptos = pd.DataFrame(registros_conceptos).sort_values('Frecuencia', ascending=True)
+
+    # --- Fragmentos reales anónimos, ligados a las palabras clave más usadas ---
+    # Para que el resumen de IA pueda referirse a cosas que de verdad se dijeron
+    # en el chat (y no solo a estadísticas), le pasamos unas pocas frases cortas
+    # y SIN AUTOR que contienen las palabras clave más repetidas. Nunca se manda
+    # el chat completo ni se identifica quién escribió cada frase.
+    MAX_PALABRAS_CON_FRAGMENTOS = 6
+    MAX_FRAGMENTOS_POR_PALABRA = 2
+    MAX_CARACTERES_FRAGMENTO = 110
+
+    mascara_texto_real = ~(df['Es_Multimedia'] | df['Es_Eliminado'])
+    top_palabras_para_fragmentos = (
+        df_conceptos[df_conceptos['Frecuencia'] > 0]
+        .sort_values('Frecuencia', ascending=False)
+        .head(MAX_PALABRAS_CON_FRAGMENTOS)['Concepto']
+        .tolist()
+    )
+
+    fragmentos_por_palabra = []
+    for palabra in top_palabras_para_fragmentos:
+        patron_palabra = rf'\b{re.escape(palabra.strip().lower())}\b'
+        coincidencias = df[mascara_texto_real & df['Mensaje_Minus'].str.contains(patron_palabra, regex=True, na=False)]
+
+        fragmentos = []
+        for texto_original in coincidencias['Mensaje'].astype(str).tolist():
+            fragmento = texto_original.strip().replace('\n', ' ')
+            if len(fragmento) > MAX_CARACTERES_FRAGMENTO:
+                fragmento = fragmento[:MAX_CARACTERES_FRAGMENTO].rsplit(' ', 1)[0] + "…"
+            if fragmento and fragmento not in fragmentos:
+                fragmentos.append(fragmento)
+            if len(fragmentos) >= MAX_FRAGMENTOS_POR_PALABRA:
+                break
+
+        if fragmentos:
+            fragmentos_por_palabra.append({"palabra": palabra, "fragmentos": fragmentos})
+
     df.drop(columns=['Mensaje_Minus'], inplace=True)  # era una copia completa del texto: liberamos esa memoria ya
 
     fig_palabras = px.bar(df_conceptos, x='Frecuencia', y='Concepto', orientation='h', text='Frecuencia', title='Frecuencia de palabras clave personalizadas', color='Frecuencia', color_continuous_scale='tealgrn', custom_data=['Detalle_Autores'])
@@ -1031,6 +1088,8 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
         "top_fantasma": df_fantasma.iloc[0]['Usuario'] if not df_fantasma.empty else "N/A",
         "top_emojis": [e for e, _ in Counter(todos_los_emojis).most_common(8)] if todos_los_emojis else [],
         "top_palabras": df_conceptos.sort_values('Frecuencia', ascending=False).head(8)['Concepto'].tolist(),
+        # --- Fragmentos reales y anónimos para que la IA pueda citar cosas concretas ---
+        "fragmentos_por_palabra": fragmentos_por_palabra,
         # --- Curiosidades específicas para un resumen más divertido y concreto ---
         "dia_mas_activo": dia_mas_activo or "sin datos suficientes",
         "mensajes_dia_mas_activo": mensajes_dia_mas_activo,
