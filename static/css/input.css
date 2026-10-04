@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+/* Habilita el modo claro/oscuro controlado por una clase ".dark" en <html>,
+   en vez de depender únicamente de prefers-color-scheme del sistema. El
+   botón de la interfaz añade/quita esta clase y recuerda la preferencia del
+   usuario en localStorage (ver el script en cada plantilla). */
+@custom-variant dark (&:where(.dark, .dark *));

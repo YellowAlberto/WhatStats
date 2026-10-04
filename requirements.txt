@@ -8,5 +8,4 @@ matplotlib
 seaborn
 plotly
 reportlab
-google-genai
 python-dotenv

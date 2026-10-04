@@ -1,21 +1,9 @@
-# Entorno y secretos
-.env
-config.clauderc
-
-# Python
+# Entorno virtual de Python
+venv/
 __pycache__/
 *.pyc
-*.pyo
-venv/
-.venv/
-env/
+.env
 
-# Imágenes generadas en tiempo de ejecución (se regeneran solas al analizar un chat)
-static/*.png
-!static/.gitkeep
-
-# Editor / SO
-.vscode/
-.idea/
-.DS_Store
-Thumbs.db
+# Dependencias de Node (solo se usan en local para compilar static/css/tailwind.css,
+# el propio tailwind.css SÍ se versiona y se sube).
+node_modules/
