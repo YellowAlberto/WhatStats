@@ -45,7 +45,7 @@
                 <h2 class="text-xl font-bold text-teal-600 dark:text-teal-400 flex items-center gap-2">
                     💡 ¿Cómo exportar tu chat?
                 </h2>
-                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Sigue estos sencillos pasos desde tu teléfono móvil para conseguir el archivo .txt correcto.</p>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Sigue estos sencillos pasos desde tu teléfono móvil para conseguir el archivo de tu chat.</p>
             </div>
 
             <div class="space-y-4 text-sm">
@@ -57,7 +57,7 @@
                         <li>Selecciona <span class="font-semibold text-slate-900 dark:text-white">Más</span> y luego <span class="font-semibold text-slate-900 dark:text-white">Exportar chat</span>.</li>
                         <li>Elige <span class="text-rose-600 dark:text-rose-400 font-bold">SIN ARCHIVOS</span></li>
                         <li>Guarda el archivo en tu dispositivo o envíatelo.</li>
-                        <li>Extrae el archivo .txt y súbelo aquí para analizarlo.</li>
+                        <li>Súbelo aquí tal cual (.zip o .txt), sin necesidad de extraerlo.</li>
                     </ol>
                 </div>
 
@@ -69,7 +69,7 @@
                         <li>Selecciona <span class="font-semibold text-slate-900 dark:text-white">Exportar chat</span>.</li>
                         <li>Elige <span class="text-rose-600 dark:text-rose-400 font-bold">SIN ARCHIVOS</span></li>
                         <li>Guarda el documento en la app <span class="font-semibold text-slate-900 dark:text-white">Archivos</span> de tu iPhone.</li>
-                        <li>Extrae el archivo .txt y súbelo aquí para analizarlo.</li>
+                        <li>Súbelo aquí tal cual (.zip o .txt), sin necesidad de extraerlo.</li>
                     </ol>
                 </div>
             </div>
@@ -90,15 +90,15 @@
             <form action="/analizar" method="post" enctype="multipart/form-data" class="space-y-4" id="analisisForm">
 
                 <div id="dropzone" class="group border-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-teal-600 dark:hover:border-teal-500 rounded-2xl p-8 text-center transition cursor-pointer relative bg-slate-50 dark:bg-slate-900/30">
-                    <label for="fileInput" class="sr-only">Subir archivo de chat de WhatsApp exportado (.txt)</label>
-                    <input type="file" id="fileInput" name="file" accept=".txt" required aria-label="Subir archivo de chat de WhatsApp exportado (.txt)" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                    <label for="fileInput" class="sr-only">Subir archivo de chat de WhatsApp exportado (.zip o .txt)</label>
+                    <input type="file" id="fileInput" name="file" accept=".txt,.zip,application/zip,application/x-zip-compressed,text/plain" required aria-label="Subir archivo de chat de WhatsApp exportado (.zip o .txt)" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
 
                     <div id="fileIcon" class="mx-auto w-12 h-12 mb-3 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xl text-slate-500 dark:text-slate-400 group-hover:bg-teal-500 group-hover:text-slate-950 transition duration-300">
                         📄
                     </div>
 
-                    <p id="fileText" class="text-slate-800 dark:text-slate-200 font-bold text-sm group-hover:text-teal-600 dark:group-hover:text-teal-400 transition">Haz clic aquí o arrastra tu chat.txt</p>
-                    <p id="fileSubtext" class="text-xs text-slate-500 mt-1">Solo se admiten archivos de extensión de texto plano (.txt)</p>
+                    <p id="fileText" class="text-slate-800 dark:text-slate-200 font-bold text-sm group-hover:text-teal-600 dark:group-hover:text-teal-400 transition">Haz clic aquí o arrastra tu chat (.zip o .txt)</p>
+                    <p id="fileSubtext" class="text-xs text-slate-500 mt-1">Se admite el .zip tal cual lo exporta WhatsApp, o el .txt suelto</p>
                 </div>
 
                 <div class="flex flex-col space-y-1">

@@ -20,6 +20,7 @@ from fastapi.templating import Jinja2Templates
 
 from .config import FRASES_MULTIMEDIA, FRASES_ELIMINADO, PATRON_EMOJI, DIAS_SEMANA_ES
 from .chat_parser import procesar_chat_whatsapp
+from .zip_utils import es_zip, extraer_txt_de_zip, ErrorZip
 from .bubble_chart import generar_mapa_burbujas
 from .pdf_charts import grafico_barh_mpl, grafico_barv_mpl, grafico_linea_mpl, grafico_heatmap_mpl
 from .pdf_report import generar_informe_pdf
@@ -50,7 +51,23 @@ async def inicio(request: Request):
 
 @router.post("/analizar", response_class=HTMLResponse)
 def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: str = Form(None)):
-    contenido = file.file.read()
+    LIMITE_TAMANO_MB = 25
+
+    # Si es un .zip (exportación de WhatsApp), se extrae solo el .txt del chat.
+    # Se lee directamente del archivo temporal, sin cargar el zip entero en
+    # memoria (puede traer fotos y audios).
+    if es_zip(file.file):
+        try:
+            contenido = extraer_txt_de_zip(file.file, LIMITE_TAMANO_MB * 1024 * 1024)
+        except ErrorZip as e:
+            return templates.TemplateResponse(
+                name="error.html",
+                context={"mensaje": e.mensaje},
+                request=request,
+                status_code=e.status_code,
+            )
+    else:
+        contenido = file.file.read()
 
     # El plan Free de Render tiene solo 512MB de RAM. Un .txt de WhatsApp muy
     # grande se convierte en un DataFrame bastante más pesado que el propio
@@ -58,7 +75,6 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
     # 13 gráficas interactivas a la vez: por encima de este tamaño es fácil
     # quedarse sin memoria. Lo rechazamos con un aviso claro en vez de que el
     # servicio se caiga a medias.
-    LIMITE_TAMANO_MB = 25
     if len(contenido) > LIMITE_TAMANO_MB * 1024 * 1024:
         return templates.TemplateResponse(
             name="error.html",
