@@ -109,14 +109,32 @@
             opacity: 1;
         }
     </style>
+    <style>
+        /* Título con el nombre del grupo: se adapta al ancho disponible y, si el
+           nombre es muy largo, se recorta a 2 líneas con "…" (nombre completo al
+           pasar el ratón). Va en CSS propio para no depender de recompilar Tailwind. */
+        .titulo-bloque { flex: 1 1 0; min-width: 0; margin-right: 0.75rem; }
+        .titulo-grupo {
+            min-width: 0;
+            font-size: clamp(1.25rem, 2.2vw + 0.6rem, 1.875rem);
+            line-height: 1.2;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+            line-clamp: 2;
+            overflow-wrap: anywhere;
+        }
+        .pill-mensajes { flex-shrink: 0; white-space: nowrap; }
+    </style>
 </head>
 <body class="bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 min-h-screen lg:h-screen lg:overflow-hidden p-3 md:p-5 flex flex-col">
     <main class="max-w-7xl mx-auto w-full flex flex-col lg:flex-1 lg:min-h-0">
 
         <div class="flex justify-between items-center mb-3 shrink-0">
-            <div class="flex items-center gap-3 flex-wrap">
-                <h1 class="text-3xl font-extrabold text-teal-700 dark:text-teal-400 tracking-tight break-words">📊 {{ nombre_grupo or "La radiografía de tu grupo" }}</h1>
-                <span class="inline-flex items-center gap-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full px-3 py-1 text-xs font-semibold text-slate-700 dark:text-slate-300">💬 <span class="font-black text-slate-900 dark:text-white">{{ "{:,}".format(total_mensajes) }}</span> mensajes analizados</span>
+            <div class="flex items-center gap-3 titulo-bloque">
+                <h1 class="titulo-grupo font-extrabold text-teal-700 dark:text-teal-400 tracking-tight" title="{{ nombre_grupo or '' }}">📊 {{ nombre_grupo or "La radiografía de tu grupo" }}</h1>
+                <span class="pill-mensajes inline-flex items-center gap-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full px-3 py-1 text-xs font-semibold text-slate-700 dark:text-slate-300">💬 <span class="font-black text-slate-900 dark:text-white">{{ "{:,}".format(total_mensajes) }}</span> mensajes analizados</span>
             </div>
             <div class="flex items-center gap-2">
                 <button id="btnTema" onclick="alternarTema()" aria-label="Cambiar entre modo claro y oscuro" class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full w-9 h-9 flex items-center justify-center text-base shadow hover:scale-105 transition cursor-pointer">
