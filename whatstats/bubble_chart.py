@@ -1,13 +1,16 @@
 """Algoritmo de empaquetado de círculos y generación del mapa de conceptos
-(bubble chart) que se muestra en la web como una imagen PNG en base64."""
+(bubble chart): un SVG interactivo para la web y un PNG para el informe PDF."""
 
 import io
+import base64
+from html import escape
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')  # Evita bloqueos en servidores web
 import matplotlib.pyplot as plt
 from matplotlib import patheffects
 import seaborn as sns
+from matplotlib.colors import to_hex
 
 
 def empaquetar_circulos(radii):
@@ -79,21 +82,25 @@ def empaquetar_circulos(radii):
     return pos
 
 
-def generar_mapa_burbujas(top_100_palabras):
-    """Dibuja el mapa de conceptos (bubble chart) a partir de un DataFrame con
-    columnas 'Palabra' y 'Frecuencia' (las 100 palabras más repetidas del
-    chat) y devuelve la imagen PNG codificada en base64. Si el DataFrame está
-    vacío, devuelve una cadena vacía."""
-    import base64
-
-    g6_base64 = ""
-    if top_100_palabras.empty:
-        return g6_base64
-
+def _disposicion(top_100_palabras):
+    """Calcula (una sola vez) radios y coordenadas de las burbujas y el encuadre
+    cuadrado que las contiene: devuelve (coordenadas, radios, (cx, cy, mitad))."""
     radii_base = np.sqrt(top_100_palabras['Frecuencia'].values)
     escala_visual = 25.0 / radii_base.max()
     radii_visuales = radii_base * escala_visual
     coordenadas = empaquetar_circulos(radii_visuales)
+
+    x_min = (coordenadas[:, 0] - radii_visuales).min()
+    x_max = (coordenadas[:, 0] + radii_visuales).max()
+    y_min = (coordenadas[:, 1] - radii_visuales).min()
+    y_max = (coordenadas[:, 1] + radii_visuales).max()
+    mitad = max(x_max - x_min, y_max - y_min) / 2 * 1.03
+    return coordenadas, radii_visuales, ((x_min + x_max) / 2, (y_min + y_max) / 2, mitad)
+
+
+def _png_base64(top_100_palabras, coordenadas, radii_visuales, encuadre):
+    """Imagen PNG (base64) del mapa, usada en el informe PDF."""
+    centro_x, centro_y, mitad = encuadre
 
     plt.style.use('dark_background')
     fig_mpl, ax_mpl = plt.subplots(figsize=(11, 11))
@@ -122,15 +129,75 @@ def generar_mapa_burbujas(top_100_palabras):
             ax_mpl.text(x_c, y_c, texto_nodo, ha='center', va='center', color=color_texto, fontsize=tam_fuente, weight='bold', path_effects=halo)
 
     ax_mpl.axis('off')
-    lim = coordenadas[:, 0].min() - radii_visuales.max() * 1.2, coordenadas[:, 0].max() + radii_visuales.max() * 1.2
-    ax_mpl.set_xlim(lim[0], lim[1])
-    ax_mpl.set_ylim(coordenadas[:, 1].min() - radii_visuales.max() * 1.2, coordenadas[:, 1].max() + radii_visuales.max() * 1.2)
-    plt.tight_layout()
+    # Encuadre cuadrado y ajustado a las burbujas (sin márgenes sobrantes)
+    ax_mpl.set_xlim(centro_x - mitad, centro_x + mitad)
+    ax_mpl.set_ylim(centro_y - mitad, centro_y + mitad)
+    ax_mpl.set_aspect('equal', adjustable='box')
+    fig_mpl.subplots_adjust(left=0, right=1, bottom=0, top=1)
 
     buf = io.BytesIO()
     plt.savefig(buf, format='png', dpi=140, facecolor='#1E293B', edgecolor='none')
     buf.seek(0)
-    g6_base64 = base64.b64encode(buf.getvalue()).decode('utf-8')
+    resultado = base64.b64encode(buf.getvalue()).decode('utf-8')
     plt.close(fig_mpl)
+    return resultado
 
-    return g6_base64
+
+def _svg(top_100_palabras, coordenadas, radii_visuales, encuadre):
+    """SVG interactivo (se incrusta tal cual en la página). Cada burbuja es un
+    <g class="burbuja"> con sus datos en atributos data-*; el JavaScript de
+    resultados.html se encarga del resalte, el tooltip y la pantalla completa."""
+    centro_x, centro_y, mitad = encuadre
+    colores = sns.color_palette("YlGnBu_r", n_colors=len(top_100_palabras))
+
+    partes = [
+        f'<svg id="svg-burbujas" xmlns="http://www.w3.org/2000/svg" '
+        f'viewBox="{centro_x - mitad:.2f} {centro_y - mitad:.2f} {2 * mitad:.2f} {2 * mitad:.2f}" '
+        f'preserveAspectRatio="xMidYMid meet" role="img" '
+        f'aria-label="Mapa de las 100 palabras más usadas: cuanto mayor la burbuja, más veces se ha usado">'
+    ]
+    for idx in range(len(top_100_palabras)):
+        palabra = str(top_100_palabras.iloc[idx]['Palabra'])
+        frecuencia = int(top_100_palabras.iloc[idx]['Frecuencia'])
+        cx, cy = float(coordenadas[idx][0]), float(coordenadas[idx][1])
+        r = float(radii_visuales[idx])
+        color = colores[idx]
+        brillo = 0.299 * color[0] + 0.587 * color[1] + 0.114 * color[2]
+        color_texto = '#0f172a' if brillo > 0.55 else '#ffffff'
+        fondo = to_hex(color)
+
+        etiqueta = ""
+        # Tamaño de letra limitado por el radio y por lo largo de la palabra
+        fs = min(r * 0.42, (2 * r * 0.86) / (max(len(palabra), len(str(frecuencia))) * 0.62))
+        if fs >= 2.2:
+            etiqueta = (
+                f'<text x="{cx:.2f}" y="{cy - fs * 0.1:.2f}" text-anchor="middle" fill="{color_texto}" '
+                f'font-size="{fs:.2f}" font-weight="700" pointer-events="none">'
+                f'{escape(palabra)}<tspan x="{cx:.2f}" dy="{fs * 1.1:.2f}">{frecuencia}</tspan></text>'
+            )
+        partes.append(
+            f'<g class="burbuja" data-palabra="{escape(palabra, quote=True)}" data-cx="{cx:.2f}" '
+            f'data-cy="{cy:.2f}" data-r="{r:.2f}" data-fill="{fondo}" data-txt="{color_texto}">'
+            f'<circle cx="{cx:.2f}" cy="{cy:.2f}" r="{r:.2f}" fill="{fondo}"/>{etiqueta}</g>'
+        )
+    # Capa superior (sin eventos) donde el JS dibuja la burbuja resaltada
+    partes.append('<g id="burbuja-foco" pointer-events="none"></g></svg>')
+    return "".join(partes)
+
+
+def generar_mapas_burbujas(top_100_palabras):
+    """Devuelve (png_base64, svg) del mapa de conceptos a partir de un DataFrame
+    con columnas 'Palabra' y 'Frecuencia' (las 100 palabras más repetidas). El
+    PNG va al informe PDF y el SVG interactivo a la web. Si no hay palabras,
+    devuelve ("", "")."""
+    if top_100_palabras.empty:
+        return "", ""
+    coordenadas, radii_visuales, encuadre = _disposicion(top_100_palabras)
+    png = _png_base64(top_100_palabras, coordenadas, radii_visuales, encuadre)
+    svg = _svg(top_100_palabras, coordenadas, radii_visuales, encuadre)
+    return png, svg
+
+
+def generar_mapa_burbujas(top_100_palabras):
+    """Solo el PNG en base64 (compatibilidad); cadena vacía si no hay palabras."""
+    return generar_mapas_burbujas(top_100_palabras)[0]

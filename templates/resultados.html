@@ -13,8 +13,9 @@
         })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Panel de estadísticas de tu chat de WhatsApp: ranking de miembros, actividad por hora, tiempos de respuesta, emojis y más.">
     <meta name="robots" content="noindex">
-    <title>WhatStats · Panel Estadístico Completo</title>
+    <title>WhatStats · {{ nombre_grupo or "Panel Estadístico Completo" }}</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
     <link rel="stylesheet" href="/static/css/tailwind.css">
     <!-- OJO: "plotly-latest.min.js" NO se actualiza desde hace años (alias
@@ -31,6 +32,72 @@
             to { opacity: 1; }
         }
 
+        /* Cada gráfica ocupa todo el hueco de su recuadro (sin scroll): en pantallas
+           grandes se estira hasta el alto disponible; en móvil tiene un alto fijo. */
+        .grafico-wrap { width: 100%; height: 520px; overflow: hidden; border-radius: 0.75rem; }
+        .grafico-wrap.grafico-scroll { overflow: auto; }
+        /* Plotly envuelve el gráfico en un div sin estilo: hay que propagar el 100% */
+        .grafico-wrap > div, .grafico-wrap .plotly-graph-div { height: 100%; width: 100%; }
+        @media (min-width: 1024px) {
+            .grafico-wrap { height: auto; flex: 1 1 0%; min-height: 0; }
+        }
+
+        /* --- Mapa de conceptos interactivo (SVG) --- */
+        #burbujasWrap {
+            position: relative; box-sizing: border-box; width: 100%; height: min(92vw, 560px);
+            display: flex; align-items: center; justify-content: center;
+            background: #1e293b; border-radius: 1rem; cursor: zoom-in; overflow: hidden;
+        }
+        #burbujasWrap svg { width: 100%; height: 100%; display: block; }
+        #burbujasWrap svg text { font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; }
+        @media (min-width: 1024px) { #burbujasWrap { height: auto; flex: 1 1 0%; min-height: 0; } }
+        #burbujasWrap .burbuja { cursor: pointer; transition: opacity 0.15s; }
+        #burbujasWrap .burbuja circle { stroke: #0f172a; stroke-width: 0.35; }
+        #burbujasWrap svg.hay-foco .burbuja { opacity: 0.35; }
+        .burbujas-pista {
+            position: absolute; left: 50%; bottom: 0.6rem; transform: translateX(-50%);
+            font-size: 11px; color: #94a3b8; pointer-events: none; white-space: nowrap;
+            background: rgba(15, 23, 42, 0.7); padding: 0.2rem 0.7rem; border-radius: 999px;
+            max-width: 94%; overflow: hidden; text-overflow: ellipsis;
+        }
+        .burbujas-cerrar {
+            display: none; position: absolute; top: 1rem; right: 1rem; width: 2.5rem; height: 2.5rem;
+            border-radius: 999px; background: rgba(15, 23, 42, 0.85); color: #f1f5f9; font-size: 1.1rem;
+            border: 1px solid #475569; cursor: pointer; z-index: 2;
+        }
+        .burbujas-tooltip {
+            position: fixed; z-index: 80; pointer-events: none; max-width: 17rem;
+            background: #0f172a; color: #f1f5f9; border: 1px solid #14b8a6; border-radius: 0.75rem;
+            padding: 0.6rem 0.8rem; font-size: 13px; line-height: 1.35; box-shadow: 0 10px 25px rgba(0,0,0,0.45);
+        }
+        .burbujas-tooltip[hidden] { display: none; }
+        .burbujas-tooltip .bt-palabra { font-size: 16px; font-weight: 800; }
+        .burbujas-tooltip .bt-sub { color: #94a3b8; font-size: 12px; }
+        .burbujas-tooltip .bt-autores { margin-top: 0.35rem; padding-top: 0.35rem; border-top: 1px solid #334155; }
+        #burbujasWrap.expandido {
+            position: fixed; inset: 0; z-index: 70; height: 100%; border-radius: 0;
+            cursor: default; padding: 1rem; background: #0f172a;
+        }
+        #burbujasWrap.expandido .burbujas-cerrar { display: block; }
+        body.burbujas-abiertas { overflow: hidden; }
+        @media (prefers-reduced-motion: reduce) { #burbujasWrap .burbuja { transition: none; } }
+
+        /* Las barras de las gráficas crecen desde su base al mostrarse la pestaña */
+        .js-plotly-plot .barlayer .point path {
+            transform-box: fill-box;
+            transform-origin: left center;
+            animation: barra-crece 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+        #g-evolucion .barlayer .point path {
+            transform-origin: center bottom;
+            animation-name: barra-sube;
+        }
+        @keyframes barra-crece { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+        @keyframes barra-sube { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+        @media (prefers-reduced-motion: reduce) {
+            .js-plotly-plot .barlayer .point path { animation: none; }
+        }
+
         /* Transición de apertura/cierre del modal de perfil individual */
         #modalPerfilUsuario .modal-panel {
             transition: transform 0.18s ease-out, opacity 0.18s ease-out;
@@ -44,39 +111,18 @@
     </style>
 </head>
 <body class="bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 min-h-screen lg:h-screen lg:overflow-hidden p-3 md:p-5 flex flex-col">
-    <div class="max-w-7xl mx-auto w-full flex flex-col lg:flex-1 lg:min-h-0">
+    <main class="max-w-7xl mx-auto w-full flex flex-col lg:flex-1 lg:min-h-0">
 
         <div class="flex justify-between items-center mb-3 shrink-0">
-            <h1 class="text-3xl font-extrabold text-teal-600 dark:text-teal-400 tracking-tight">📈 Panel de Análisis Avanzado</h1>
+            <div class="flex items-center gap-3 flex-wrap">
+                <h1 class="text-3xl font-extrabold text-teal-700 dark:text-teal-400 tracking-tight break-words">📊 {{ nombre_grupo or "La radiografía de tu grupo" }}</h1>
+                <span class="inline-flex items-center gap-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full px-3 py-1 text-xs font-semibold text-slate-700 dark:text-slate-300">💬 <span class="font-black text-slate-900 dark:text-white">{{ "{:,}".format(total_mensajes) }}</span> mensajes analizados</span>
+            </div>
             <div class="flex items-center gap-2">
                 <button id="btnTema" onclick="alternarTema()" aria-label="Cambiar entre modo claro y oscuro" class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full w-9 h-9 flex items-center justify-center text-base shadow hover:scale-105 transition cursor-pointer">
                     <span id="iconoTema" aria-hidden="true">🌙</span>
                 </button>
                 <a href="/" onclick="return confirm('¿Seguro que quieres salir? Perderás este panel de estadísticas y tendrás que volver a subir el chat para verlo de nuevo.');" class="bg-white dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-sm px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 transition font-medium">⬅ Analizar otro chat</a>
-            </div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3 shrink-0">
-            <div class="bg-white dark:bg-slate-800 px-5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 flex items-center justify-between shadow-lg">
-                <div>
-                    <p class="text-slate-500 dark:text-slate-400 uppercase text-[10px] tracking-wider font-semibold">Total de Mensajes Extraídos</p>
-                    <h2 class="text-2xl font-black text-slate-900 dark:text-white mt-0.5">{{ "{:,}".format(total_mensajes) }}</h2>
-                </div>
-                <span class="text-2xl opacity-60">💬</span>
-            </div>
-            <div class="bg-white dark:bg-slate-800 px-5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 flex items-center justify-between shadow-lg">
-                <div>
-                    <p class="text-slate-500 dark:text-slate-400 uppercase text-[10px] tracking-wider font-semibold">Multimedia Enviado</p>
-                    <h2 class="text-2xl font-black text-slate-900 dark:text-white mt-0.5">{{ "{:,}".format(total_multimedia) }}</h2>
-                </div>
-                <span class="text-2xl opacity-60">📎</span>
-            </div>
-            <div class="bg-white dark:bg-slate-800 px-5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 flex items-center justify-between shadow-lg">
-                <div>
-                    <p class="text-slate-500 dark:text-slate-400 uppercase text-[10px] tracking-wider font-semibold">Mensajes Eliminados</p>
-                    <h2 class="text-2xl font-black text-slate-900 dark:text-white mt-0.5">{{ "{:,}".format(total_eliminados) }}</h2>
-                </div>
-                <span class="text-2xl opacity-60">🗑️</span>
             </div>
         </div>
 
@@ -88,147 +134,144 @@
            class="mb-8 w-full flex items-center justify-center gap-3 bg-gradient-to-r from-teal-500 to-teal-400 hover:from-teal-400 hover:to-teal-300 text-slate-950 font-black py-4 px-6 rounded-2xl transition shadow-lg tracking-wide cursor-pointer text-sm disabled:opacity-60 disabled:cursor-wait">
             📄 Generar y Descargar Informe PDF Completo (con explicaciones)
         </button>
-        <p id="pdfHint" class="hidden text-[11px] text-slate-500 text-center -mt-6 mb-8">
+        <p id="pdfHint" class="hidden text-[11px] text-slate-600 text-center -mt-6 mb-8 dark:text-slate-400">
             ⏳ Generando el informe (gráficas)… puede tardar unos segundos.
         </p>
         {% endif %}
         #}
 
-        <p class="text-xs text-slate-500 text-center mb-3 shrink-0">
-            ✨ Usa las flechas <kbd class="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-slate-700 dark:text-slate-300">←</kbd> <kbd class="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-slate-700 dark:text-slate-300">→</kbd> de tu teclado (o los botones) para moverte entre gráficas.
-        </p>
-
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
 
             <div class="lg:col-span-2 flex flex-col space-y-3 lg:min-h-0 lg:overflow-hidden">
 
-                <div class="relative bg-slate-50 dark:bg-slate-900 rounded-xl p-1 border border-slate-200 dark:border-slate-800 overflow-hidden shrink-0" role="tablist" aria-label="Gráficas disponibles">
+                <div class="relative bg-slate-50 dark:bg-slate-900 rounded-xl p-1 border border-slate-200 dark:border-slate-800 overflow-hidden shrink-0" >
                     <button id="scroll-left-indicator" onclick="scrollMenu('izq')" class="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-slate-50 dark:from-slate-900 via-slate-50 dark:via-slate-900/90 to-transparent z-40 flex items-center justify-start pl-2 opacity-0 transition-all duration-300 pointer-events-none cursor-pointer group">
-                        <span class="text-teal-600 dark:text-teal-400 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-1.5 rounded-full shadow-md group-hover:scale-110 transition">◀</span>
+                        <span class="text-teal-700 dark:text-teal-400 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-1.5 rounded-full shadow-md group-hover:scale-110 transition">◀</span>
                     </button>
 
-                    <div id="tabs-container" class="flex overflow-x-auto scrollbar-none gap-2 pb-px scroll-smooth px-2">
-                        <button onclick="activarPestana('pestana-ranking', this)" id="tab-pestana-ranking" role="tab" aria-selected="true" aria-controls="pestana-ranking" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-teal-600 dark:border-teal-400 text-teal-600 dark:text-teal-400 whitespace-nowrap transition cursor-pointer">
+                    <div id="tabs-container" role="tablist" aria-label="Gráficas disponibles" class="flex overflow-x-auto scrollbar-none gap-2 pb-px scroll-smooth px-2">
+                        <button onclick="activarPestana('pestana-ranking', this)" id="tab-pestana-ranking" role="tab" aria-selected="true" aria-controls="pestana-ranking" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-teal-600 dark:border-teal-400 text-teal-700 dark:text-teal-400 whitespace-nowrap transition cursor-pointer">
                             📊 Miembros Activos
                         </button>
-                        <button onclick="activarPestana('pestana-horas', this)" id="tab-pestana-horas" role="tab" aria-selected="false" aria-controls="pestana-horas" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
+                        <button onclick="activarPestana('pestana-horas', this)" id="tab-pestana-horas" role="tab" aria-selected="false" aria-controls="pestana-horas" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
                             🕒 Actividad Horaria
                         </button>
-                        <button onclick="activarPestana('pestana-heatmap', this)" id="tab-pestana-heatmap" role="tab" aria-selected="false" aria-controls="pestana-heatmap" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
+                        <button onclick="activarPestana('pestana-heatmap', this)" id="tab-pestana-heatmap" role="tab" aria-selected="false" aria-controls="pestana-heatmap" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
                             🗓️ Día × Hora
                         </button>
-                        <button onclick="activarPestana('pestana-matriz', this)" id="tab-pestana-matriz" role="tab" aria-selected="false" aria-controls="pestana-matriz" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
+                        <button onclick="activarPestana('pestana-matriz', this)" id="tab-pestana-matriz" role="tab" aria-selected="false" aria-controls="pestana-matriz" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
                             🧩 Matriz de Afinidad
                         </button>
-                        <button onclick="activarPestana('pestana-evolucion', this)" id="tab-pestana-evolucion" role="tab" aria-selected="false" aria-controls="pestana-evolucion" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
+                        <button onclick="activarPestana('pestana-evolucion', this)" id="tab-pestana-evolucion" role="tab" aria-selected="false" aria-controls="pestana-evolucion" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
                             📅 Evolución Anual
                         </button>
-                        <button onclick="activarPestana('pestana-tiempo', this)" id="tab-pestana-tiempo" role="tab" aria-selected="false" aria-controls="pestana-tiempo" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
+                        <button onclick="activarPestana('pestana-tiempo', this)" id="tab-pestana-tiempo" role="tab" aria-selected="false" aria-controls="pestana-tiempo" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
                             ⏱️ Tiempos de Respuesta
                         </button>
-                        <button onclick="activarPestana('pestana-fantasma', this)" id="tab-pestana-fantasma" role="tab" aria-selected="false" aria-controls="pestana-fantasma" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
+                        <button onclick="activarPestana('pestana-fantasma', this)" id="tab-pestana-fantasma" role="tab" aria-selected="false" aria-controls="pestana-fantasma" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
                             👻 Mensajes Fantasma
                         </button>
-                        <button onclick="activarPestana('pestana-multimedia', this)" id="tab-pestana-multimedia" role="tab" aria-selected="false" aria-controls="pestana-multimedia" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
+                        <button onclick="activarPestana('pestana-multimedia', this)" id="tab-pestana-multimedia" role="tab" aria-selected="false" aria-controls="pestana-multimedia" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
                             📎 Multimedia
                         </button>
-                        <button onclick="activarPestana('pestana-eliminados', this)" id="tab-pestana-eliminados" role="tab" aria-selected="false" aria-controls="pestana-eliminados" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
+                        <button onclick="activarPestana('pestana-eliminados', this)" id="tab-pestana-eliminados" role="tab" aria-selected="false" aria-controls="pestana-eliminados" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
                             🗑️ Eliminados
                         </button>
-                        <button onclick="activarPestana('pestana-longitud', this)" id="tab-pestana-longitud" role="tab" aria-selected="false" aria-controls="pestana-longitud" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
+                        <button onclick="activarPestana('pestana-longitud', this)" id="tab-pestana-longitud" role="tab" aria-selected="false" aria-controls="pestana-longitud" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
                             ✍️ Longitud de Mensaje
                         </button>
                         {% if g10 %}
-                        <button onclick="activarPestana('pestana-emojis', this)" id="tab-pestana-emojis" role="tab" aria-selected="false" aria-controls="pestana-emojis" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
+                        <button onclick="activarPestana('pestana-emojis', this)" id="tab-pestana-emojis" role="tab" aria-selected="false" aria-controls="pestana-emojis" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
                             😂 Emojis
                         </button>
                         {% endif %}
-                        <button onclick="activarPestana('pestana-palabras', this)" id="tab-pestana-palabras" role="tab" aria-selected="false" aria-controls="pestana-palabras" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
+                        <button onclick="activarPestana('pestana-palabras', this)" id="tab-pestana-palabras" role="tab" aria-selected="false" aria-controls="pestana-palabras" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
                             🏷️ Palabras Clave
                         </button>
-                        {% if g6 %}
-                        <button onclick="activarPestana('pestana-burbujas', this)" id="tab-pestana-burbujas" role="tab" aria-selected="false" aria-controls="pestana-burbujas" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
+                        {% if g6_svg %}
+                        <button onclick="activarPestana('pestana-burbujas', this)" id="tab-pestana-burbujas" role="tab" aria-selected="false" aria-controls="pestana-burbujas" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
                             🔮 Mapa de Conceptos
                         </button>
                         {% endif %}
                     </div>
 
                     <button id="scroll-right-indicator" onclick="scrollMenu('der')" class="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-slate-50 dark:from-slate-900 via-slate-50 dark:via-slate-900/95 to-transparent z-40 flex items-center justify-end pr-2 transition-all duration-300 pointer-events-auto cursor-pointer group">
-                        <span class="text-teal-600 dark:text-teal-400 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 py-1 px-2 rounded-xl shadow-md group-hover:scale-105 transition tracking-wider flex items-center gap-1 font-bold">▶</span>
+                        <span class="text-teal-700 dark:text-teal-400 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 py-1 px-2 rounded-xl shadow-md group-hover:scale-105 transition tracking-wider flex items-center gap-1 font-bold">▶</span>
                     </button>
                 </div>
 
                 <div class="mt-3 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
 
                     <div id="pestana-ranking" role="tabpanel" aria-labelledby="tab-pestana-ranking" tabindex="0" class="tab-content bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col justify-between lg:h-full lg:overflow-hidden">
-                        <div class="w-full lg:flex-1 lg:min-h-0 lg:overflow-auto rounded-xl">{{ g1 | safe }}</div>
-                        <button onclick="descargarPlotly('g-ranking', 'Ranking_Mensajes')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Gráfico de Ranking (PNG)</button>
+                        <div class="grafico-wrap">{{ g1 | safe }}</div>
+                        <button style="display:none" onclick="descargarPlotly('g-ranking', 'Ranking_Mensajes')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Gráfico de Ranking (PNG)</button>
                     </div>
 
                     <div id="pestana-horas" role="tabpanel" aria-labelledby="tab-pestana-horas" tabindex="0" class="tab-content hidden bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col justify-between lg:h-full lg:overflow-hidden">
-                        <div class="w-full lg:flex-1 lg:min-h-0 lg:overflow-auto rounded-xl">{{ g2 | safe }}</div>
-                        <button onclick="descargarPlotly('g-horas', 'Actividad_Horaria')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Distribución Horaria (PNG)</button>
+                        <div class="grafico-wrap">{{ g2 | safe }}</div>
+                        <button style="display:none" onclick="descargarPlotly('g-horas', 'Actividad_Horaria')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Distribución Horaria (PNG)</button>
                     </div>
 
                     <div id="pestana-heatmap" role="tabpanel" aria-labelledby="tab-pestana-heatmap" tabindex="0" class="tab-content hidden bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col justify-between lg:h-full lg:overflow-hidden">
-                        <div class="w-full lg:flex-1 lg:min-h-0 lg:overflow-auto rounded-xl">{{ g7 | safe }}</div>
-                        <button onclick="descargarPlotly('g-heatmap-semana', 'Heatmap_Dia_Hora')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Mapa de Calor (PNG)</button>
+                        <div class="grafico-wrap">{{ g7 | safe }}</div>
+                        <button style="display:none" onclick="descargarPlotly('g-heatmap-semana', 'Heatmap_Dia_Hora')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Mapa de Calor (PNG)</button>
                     </div>
 
                     <div id="pestana-matriz" role="tabpanel" aria-labelledby="tab-pestana-matriz" tabindex="0" class="tab-content hidden bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col justify-between lg:h-full lg:overflow-hidden">
-                        <div class="w-full lg:flex-1 lg:min-h-0 lg:overflow-auto rounded-xl">{{ g3 | safe }}</div>
-                        <button onclick="descargarPlotly('g-matriz', 'Matriz_Afinidad_Cruzada')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Matriz de Afinidad (PNG)</button>
+                        <div class="grafico-wrap">{{ g3 | safe }}</div>
+                        <button style="display:none" onclick="descargarPlotly('g-matriz', 'Matriz_Afinidad_Cruzada')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Matriz de Afinidad (PNG)</button>
                     </div>
 
                     <div id="pestana-evolucion" role="tabpanel" aria-labelledby="tab-pestana-evolucion" tabindex="0" class="tab-content hidden bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col justify-between lg:h-full lg:overflow-hidden">
-                        <div class="w-full lg:flex-1 lg:min-h-0 lg:overflow-auto rounded-xl">{{ g4 | safe }}</div>
-                        <button onclick="descargarPlotly('g-evolucion', 'Evolucion_Anual')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Evolución Anual (PNG)</button>
+                        <div class="grafico-wrap">{{ g4 | safe }}</div>
+                        <button style="display:none" onclick="descargarPlotly('g-evolucion', 'Evolucion_Anual')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Evolución Anual (PNG)</button>
                     </div>
 
                     <div id="pestana-tiempo" role="tabpanel" aria-labelledby="tab-pestana-tiempo" tabindex="0" class="tab-content hidden bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col justify-between lg:h-full lg:overflow-hidden">
-                        <div class="w-full lg:flex-1 lg:min-h-0 lg:overflow-auto rounded-xl">{{ g5_tiempo | safe }}</div>
-                        <button onclick="descargarPlotly('g-tiempo', 'Tiempos_Respuesta')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Tiempos de Respuesta (PNG)</button>
+                        <div class="grafico-wrap">{{ g5_tiempo | safe }}</div>
+                        <button style="display:none" onclick="descargarPlotly('g-tiempo', 'Tiempos_Respuesta')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Tiempos de Respuesta (PNG)</button>
                     </div>
 
                     <div id="pestana-fantasma" role="tabpanel" aria-labelledby="tab-pestana-fantasma" tabindex="0" class="tab-content hidden bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col justify-between lg:h-full lg:overflow-hidden">
-                        <div class="w-full lg:flex-1 lg:min-h-0 lg:overflow-auto rounded-xl">{{ g5_fantasma | safe }}</div>
-                        <button onclick="descargarPlotly('g-fantasma', 'Mensajes_Fantasma')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Mensajes Fantasma (PNG)</button>
+                        <div class="grafico-wrap">{{ g5_fantasma | safe }}</div>
+                        <button style="display:none" onclick="descargarPlotly('g-fantasma', 'Mensajes_Fantasma')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Mensajes Fantasma (PNG)</button>
                     </div>
 
                     <div id="pestana-multimedia" role="tabpanel" aria-labelledby="tab-pestana-multimedia" tabindex="0" class="tab-content hidden bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col justify-between lg:h-full lg:overflow-hidden">
-                        <div class="w-full lg:flex-1 lg:min-h-0 lg:overflow-auto rounded-xl">{{ g8 | safe }}</div>
-                        <button onclick="descargarPlotly('g-multimedia', 'Multimedia_Por_Usuario')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Gráfico de Multimedia (PNG)</button>
+                        <div class="grafico-wrap">{{ g8 | safe }}</div>
+                        <button style="display:none" onclick="descargarPlotly('g-multimedia', 'Multimedia_Por_Usuario')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Gráfico de Multimedia (PNG)</button>
                     </div>
 
                     <div id="pestana-eliminados" role="tabpanel" aria-labelledby="tab-pestana-eliminados" tabindex="0" class="tab-content hidden bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col justify-between lg:h-full lg:overflow-hidden">
-                        <div class="w-full lg:flex-1 lg:min-h-0 lg:overflow-auto rounded-xl">{{ g8b | safe }}</div>
-                        <button onclick="descargarPlotly('g-eliminados', 'Mensajes_Eliminados')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Gráfico de Eliminados (PNG)</button>
+                        <div class="grafico-wrap">{{ g8b | safe }}</div>
+                        <button style="display:none" onclick="descargarPlotly('g-eliminados', 'Mensajes_Eliminados')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Gráfico de Eliminados (PNG)</button>
                     </div>
 
                     <div id="pestana-longitud" role="tabpanel" aria-labelledby="tab-pestana-longitud" tabindex="0" class="tab-content hidden bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col justify-between lg:h-full lg:overflow-hidden">
-                        <div class="w-full lg:flex-1 lg:min-h-0 lg:overflow-auto rounded-xl">{{ g9 | safe }}</div>
-                        <button onclick="descargarPlotly('g-longitud', 'Longitud_Media_Mensaje')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Longitud de Mensaje (PNG)</button>
+                        <div class="grafico-wrap">{{ g9 | safe }}</div>
+                        <button style="display:none" onclick="descargarPlotly('g-longitud', 'Longitud_Media_Mensaje')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Longitud de Mensaje (PNG)</button>
                     </div>
 
                     {% if g10 %}
                     <div id="pestana-emojis" role="tabpanel" aria-labelledby="tab-pestana-emojis" tabindex="0" class="tab-content hidden bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col justify-between lg:h-full lg:overflow-hidden">
-                        <div class="w-full lg:flex-1 lg:min-h-0 lg:overflow-auto rounded-xl">{{ g10 | safe }}</div>
-                        <button onclick="descargarPlotly('g-emojis', 'Ranking_Emojis')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Ranking de Emojis (PNG)</button>
+                        <div class="grafico-wrap">{{ g10 | safe }}</div>
+                        <button style="display:none" onclick="descargarPlotly('g-emojis', 'Ranking_Emojis')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Ranking de Emojis (PNG)</button>
                     </div>
                     {% endif %}
 
                     <div id="pestana-palabras" role="tabpanel" aria-labelledby="tab-pestana-palabras" tabindex="0" class="tab-content hidden bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col justify-between lg:h-full lg:overflow-hidden">
-                        <div class="w-full lg:flex-1 lg:min-h-0 lg:overflow-auto rounded-xl">{{ g_palabras | safe }}</div>
-                        <button onclick="descargarPlotly('g-palabras', 'Frecuencia_Palabras')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Frecuencia de Palabras (PNG)</button>
+                        <div class="grafico-wrap grafico-scroll">{{ g_palabras | safe }}</div>
+                        <button style="display:none" onclick="descargarPlotly('g-palabras', 'Frecuencia_Palabras')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Frecuencia de Palabras (PNG)</button>
                     </div>
 
-                    {% if g6 %}
+                    {% if g6_svg %}
                     <div id="pestana-burbujas" role="tabpanel" aria-labelledby="tab-pestana-burbujas" tabindex="0" class="tab-content hidden bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col justify-between lg:h-full lg:overflow-hidden">
-                        <div class="text-center w-full lg:flex-1 lg:min-h-0 lg:overflow-auto flex flex-col items-center">
-                            <h4 class="text-base font-bold text-slate-800 dark:text-slate-200 mb-3 shrink-0">🔮 Densidad Semántica: Análisis de las 100 palabras clave</h4>
-                            <img id="img-burbujas" src="data:image/png;base64,{{ g6 }}" alt="Packed Bubble Chart" class="max-w-full max-h-full w-auto h-auto mx-auto rounded-2xl border border-slate-200 dark:border-slate-700 shadow-lg object-contain">
+                        <div id="burbujasWrap" role="button" tabindex="0" aria-expanded="false" aria-label="Mapa de conceptos. Pulsa para ampliarlo a pantalla completa; pasa el cursor por una burbuja para ver su detalle.">
+                            {{ g6_svg | safe }}
+                            <span id="burbujasPista" class="burbujas-pista">🔍 Pasa el cursor por una burbuja para ver el detalle · Haz clic para ampliar</span>
+                            <button type="button" id="btnCerrarBurbujas" class="burbujas-cerrar" aria-label="Cerrar pantalla completa">✕</button>
+                            <div id="tooltipBurbuja" class="burbujas-tooltip" role="tooltip" hidden></div>
                         </div>
-                        <a id="btn-burbujas" download="Mapa_Burbujas_Conceptos.png" href="data:image/png;base64,{{ g6 }}" class="mt-3 shrink-0 w-full flex items-center justify-center bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide text-center">📥 Guardar Mapa de Burbujas (PNG)</a>
                     </div>
                     {% endif %}
 
@@ -237,11 +280,10 @@
 
             <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl lg:h-full flex flex-col lg:overflow-hidden lg:min-h-0">
                 <h3 class="text-base font-bold mb-2 text-slate-800 dark:text-slate-200 flex items-center gap-2 shrink-0">🏆 Tabla Completa de Posiciones</h3>
-                <p class="text-xs text-slate-500 mb-3 shrink-0">👆 Haz clic en un miembro para ver sus estadísticas individuales.</p>
                 <div class="overflow-x-auto max-h-[400px] lg:max-h-none overflow-y-auto lg:flex-1 lg:min-h-0 scrollbar-thin pr-3">
                     <table class="w-full text-left">
                         <thead class="sticky top-0 bg-white dark:bg-slate-800 z-10">
-                            <tr class="border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-sm">
+                            <tr class="border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 text-sm">
                                 <th class="pb-3 font-semibold">Miembro</th>
                                 <th class="pb-3 text-right font-semibold">Mensajes</th>
                             </tr>
@@ -250,7 +292,7 @@
                             {% for item in ranking %}
                             <tr class="hover:bg-slate-100 dark:hover:bg-slate-700/60 transition text-sm cursor-pointer" data-usuario="{{ item.usuario }}" onclick="mostrarPerfilUsuario(this.dataset.usuario)">
                                 <td class="py-3 font-medium text-slate-700 dark:text-slate-300">{{ item.usuario }}</td>
-                                <td class="py-3 text-right font-bold text-teal-600 dark:text-teal-400">{{ "{:,}".format(item.cantidad) }}</td>
+                                <td class="py-3 text-right font-bold text-teal-700 dark:text-teal-400">{{ "{:,}".format(item.cantidad) }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -259,48 +301,48 @@
             </div>
 
         </div>
-    </div>
+    </main>
 
     <!-- Panel de estadísticas individuales: oculto hasta que se clica un miembro -->
     <div id="modalPerfilUsuario" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="perfilNombre" onclick="if (event.target === this) cerrarPerfilUsuario()">
         <div class="modal-panel bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl w-full max-w-md p-6 relative">
-            <button id="btnCerrarPerfil" onclick="cerrarPerfilUsuario()" aria-label="Cerrar panel de estadísticas individuales" class="absolute top-4 right-4 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white text-xl leading-none cursor-pointer">✕</button>
-            <h3 id="perfilNombre" class="text-xl font-extrabold text-teal-600 dark:text-teal-400 mb-5 pr-8"></h3>
+            <button id="btnCerrarPerfil" onclick="cerrarPerfilUsuario()" aria-label="Cerrar panel de estadísticas individuales" class="absolute top-4 right-4 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-white text-xl leading-none cursor-pointer">✕</button>
+            <h3 id="perfilNombre" class="text-xl font-extrabold text-teal-700 dark:text-teal-400 mb-5 pr-8"></h3>
             <div class="grid grid-cols-2 gap-3 text-sm">
                 <div class="bg-slate-50 dark:bg-slate-900/60 rounded-xl p-3">
-                    <p class="text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wide">Mensajes</p>
+                    <p class="text-slate-600 dark:text-slate-400 text-xs uppercase tracking-wide">Mensajes</p>
                     <p id="perfilMensajes" class="text-lg font-bold text-slate-900 dark:text-white mt-1"></p>
                 </div>
                 <div class="bg-slate-50 dark:bg-slate-900/60 rounded-xl p-3">
-                    <p class="text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wide">% del grupo</p>
+                    <p class="text-slate-600 dark:text-slate-400 text-xs uppercase tracking-wide">% del grupo</p>
                     <p id="perfilPctMensajes" class="text-lg font-bold text-slate-900 dark:text-white mt-1"></p>
                 </div>
                 <div class="bg-slate-50 dark:bg-slate-900/60 rounded-xl p-3">
-                    <p class="text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wide">Hora favorita</p>
+                    <p class="text-slate-600 dark:text-slate-400 text-xs uppercase tracking-wide">Hora favorita</p>
                     <p id="perfilHora" class="text-lg font-bold text-slate-900 dark:text-white mt-1"></p>
                 </div>
                 <div class="bg-slate-50 dark:bg-slate-900/60 rounded-xl p-3">
-                    <p class="text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wide">Emoji favorito</p>
+                    <p class="text-slate-600 dark:text-slate-400 text-xs uppercase tracking-wide">Emoji favorito</p>
                     <p id="perfilEmoji" class="text-lg font-bold text-slate-900 dark:text-white mt-1"></p>
                 </div>
                 <div class="bg-slate-50 dark:bg-slate-900/60 rounded-xl p-3">
-                    <p class="text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wide">Long. media msj</p>
+                    <p class="text-slate-600 dark:text-slate-400 text-xs uppercase tracking-wide">Long. media msj</p>
                     <p id="perfilLongitud" class="text-lg font-bold text-slate-900 dark:text-white mt-1"></p>
                 </div>
                 <div class="bg-slate-50 dark:bg-slate-900/60 rounded-xl p-3">
-                    <p class="text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wide">Resp. media</p>
+                    <p class="text-slate-600 dark:text-slate-400 text-xs uppercase tracking-wide">Resp. media</p>
                     <p id="perfilTiempoRespuesta" class="text-lg font-bold text-slate-900 dark:text-white mt-1"></p>
                 </div>
                 <div class="bg-slate-50 dark:bg-slate-900/60 rounded-xl p-3">
-                    <p class="text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wide">Multimedia</p>
+                    <p class="text-slate-600 dark:text-slate-400 text-xs uppercase tracking-wide">Multimedia</p>
                     <p id="perfilMultimedia" class="text-lg font-bold text-slate-900 dark:text-white mt-1"></p>
                 </div>
                 <div class="bg-slate-50 dark:bg-slate-900/60 rounded-xl p-3">
-                    <p class="text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wide">Eliminados</p>
+                    <p class="text-slate-600 dark:text-slate-400 text-xs uppercase tracking-wide">Eliminados</p>
                     <p id="perfilEliminados" class="text-lg font-bold text-slate-900 dark:text-white mt-1"></p>
                 </div>
                 <div class="bg-slate-50 dark:bg-slate-900/60 rounded-xl p-3 col-span-2">
-                    <p class="text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wide">% mensajes sin respuesta ("fantasma")</p>
+                    <p class="text-slate-600 dark:text-slate-400 text-xs uppercase tracking-wide">% mensajes sin respuesta ("fantasma")</p>
                     <p id="perfilFantasma" class="text-lg font-bold text-slate-900 dark:text-white mt-1"></p>
                 </div>
             </div>
@@ -312,7 +354,50 @@
             const esOscuroAhora = document.documentElement.classList.toggle('dark');
             localStorage.setItem('whatstats-theme', esOscuroAhora ? 'dark' : 'light');
             document.getElementById('iconoTema').textContent = esOscuroAhora ? '🌙' : '☀️';
+            aplicarTemaGraficas();
         }
+
+        // Las gráficas de Plotly tienen fondo transparente y colores neutros desde
+        // el servidor; aquí se ajustan al modo claro/oscuro actual (texto, líneas
+        // de la cuadrícula y escala de color de los mapas de calor).
+        // OJO: estas escalas deben coincidir con ESCALA_CALOR_* de whatstats/chart_style.py
+        const ESCALAS_CALOR = {
+            oscuro: [[0, '#17303c'], [0.5, '#0d9488'], [1, '#5eead4']],
+            claro:  [[0, '#f0fdfa'], [0.5, '#5eead4'], [1, '#0f766e']]
+        };
+
+        function aplicarTemaGraficas() {
+            if (typeof Plotly === 'undefined') return;
+            const oscuro = document.documentElement.classList.contains('dark');
+            const colorTexto = oscuro ? '#cbd5e1' : '#334155';
+            const colorSuave = oscuro ? '#94a3b8' : '#64748b';
+            const colorLinea = oscuro ? 'rgba(148,163,184,0.18)' : 'rgba(100,116,139,0.22)';
+
+            document.querySelectorAll('.js-plotly-plot').forEach(el => {
+                try {
+                    const cambios = { 'font.color': colorTexto };
+                    if (el.layout && el.layout.polar) {
+                        // Reloj radial: sus cuadrículas son del eje polar, no del cartesiano
+                        cambios['polar.angularaxis.gridcolor'] = colorLinea;
+                        cambios['polar.radialaxis.gridcolor'] = colorLinea;
+                    } else {
+                        cambios['yaxis.gridcolor'] = colorLinea;
+                    }
+                    if (el.layout && el.layout.title && el.layout.title.subtitle) {
+                        cambios['title.subtitle.font.color'] = colorSuave;
+                    }
+                    Plotly.relayout(el, cambios);
+
+                    const traza = el.data && el.data[0];
+                    if (traza && traza.type === 'heatmap') {
+                        traza.colorscale = ESCALAS_CALOR[oscuro ? 'oscuro' : 'claro'];
+                        Plotly.redraw(el);
+                    }
+                } catch (e) { /* una gráfica con problemas no debe romper al resto */ }
+            });
+        }
+        // Se espera a que Plotly haya terminado de dibujar las gráficas
+        window.addEventListener('load', () => requestAnimationFrame(aplicarTemaGraficas));
         document.getElementById('iconoTema').textContent = document.documentElement.classList.contains('dark') ? '🌙' : '☀️';
 
         // Perfil de cada integrante, calculado en el servidor (nunca se envía
@@ -359,7 +444,10 @@
         }
 
         document.addEventListener('keydown', (evento) => {
-            if (evento.key === 'Escape') cerrarPerfilUsuario();
+            if (evento.key === 'Escape') {
+                cerrarPerfilUsuario();
+                if (typeof cerrarBurbujas === 'function') cerrarBurbujas();
+            }
         });
 
         function activarPestana(pestanaId, botonActivo) {
@@ -370,13 +458,13 @@
 
             const botones = document.querySelectorAll('.tab-btn');
             botones.forEach(b => {
-                b.classList.remove('border-teal-600', 'dark:border-teal-400', 'text-teal-600', 'dark:text-teal-400');
-                b.classList.add('border-transparent', 'text-slate-500', 'dark:text-slate-400', 'hover:text-slate-600', 'dark:hover:text-slate-200');
+                b.classList.remove('border-teal-600', 'dark:border-teal-400', 'text-teal-700', 'dark:text-teal-400');
+                b.classList.add('border-transparent', 'text-slate-600', 'dark:text-slate-400', 'hover:text-slate-600', 'dark:hover:text-slate-200');
                 b.setAttribute('aria-selected', 'false');
             });
 
-            botonActivo.classList.remove('border-transparent', 'text-slate-500', 'dark:text-slate-400', 'hover:text-slate-600', 'dark:hover:text-slate-200');
-            botonActivo.classList.add('border-teal-600', 'dark:border-teal-400', 'text-teal-600', 'dark:text-teal-400');
+            botonActivo.classList.remove('border-transparent', 'text-slate-600', 'dark:text-slate-400', 'hover:text-slate-600', 'dark:hover:text-slate-200');
+            botonActivo.classList.add('border-teal-600', 'dark:border-teal-400', 'text-teal-700', 'dark:text-teal-400');
             botonActivo.setAttribute('aria-selected', 'true');
 
             // Mantenemos sincronizado el índice para la navegación con el
@@ -402,6 +490,8 @@
         document.addEventListener('keydown', (evento) => {
             // No interferir con las flechas si el panel de perfil individual está abierto.
             if (!document.getElementById('modalPerfilUsuario').classList.contains('hidden')) return;
+            // Ni con el mapa de conceptos a pantalla completa.
+            if (document.body.classList.contains('burbujas-abiertas')) return;
             // Ni si el foco está en un campo de texto.
             if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
 
@@ -413,6 +503,127 @@
                 irAPestana(currentTabIndex - 1);
             }
         });
+
+        // --- Mapa de conceptos: resalte al pasar el cursor, tooltip y pantalla completa ---
+        const detalleBurbujas = {{ burbujas_json | safe }};
+        const burbujasWrap = document.getElementById('burbujasWrap');
+        const burbujasSvg = document.getElementById('svg-burbujas');
+
+        function cerrarBurbujas() {
+            if (!burbujasWrap || !burbujasWrap.classList.contains('expandido')) return;
+            burbujasWrap.classList.remove('expandido');
+            document.body.classList.remove('burbujas-abiertas');
+            burbujasWrap.setAttribute('aria-expanded', 'false');
+            document.getElementById('burbujasPista').style.display = '';
+            burbujasWrap.focus();
+        }
+
+        if (burbujasWrap && burbujasSvg) {
+            const NS = 'http://www.w3.org/2000/svg';
+            const foco = document.getElementById('burbuja-foco');
+            const tip = document.getElementById('tooltipBurbuja');
+            let burbujaActual = null;
+
+            function elemento(nombre, atributos, texto) {
+                const el = document.createElementNS(NS, nombre);
+                for (const k in atributos) el.setAttribute(k, atributos[k]);
+                if (texto !== undefined) el.textContent = texto;
+                return el;
+            }
+
+            function mostrarFoco(g) {
+                const cx = +g.dataset.cx, cy = +g.dataset.cy, r = +g.dataset.r * 1.35;
+                const palabra = g.dataset.palabra;
+                const n = detalleBurbujas[palabra] ? String(detalleBurbujas[palabra].n) : '';
+                foco.replaceChildren(elemento('circle', {
+                    cx: cx, cy: cy, r: r, fill: g.dataset.fill, stroke: '#f59e0b', 'stroke-width': 0.9
+                }));
+                const fs = Math.min(r * 0.42, (2 * r * 0.86) / (Math.max(palabra.length, n.length) * 0.62));
+                const t = elemento('text', {
+                    x: cx, y: cy - fs * 0.1, 'text-anchor': 'middle', fill: g.dataset.txt,
+                    'font-size': fs, 'font-weight': 700
+                }, palabra);
+                t.appendChild(elemento('tspan', { x: cx, dy: fs * 1.1 }, n));
+                foco.appendChild(t);
+                burbujasSvg.classList.add('hay-foco');
+            }
+
+            function mostrarTooltip(g, evento) {
+                const d = detalleBurbujas[g.dataset.palabra];
+                if (!d) return;
+                const crear = (clase, texto) => {
+                    const div = document.createElement('div');
+                    div.className = clase;
+                    div.textContent = texto;
+                    return div;
+                };
+                tip.replaceChildren(
+                    crear('bt-palabra', g.dataset.palabra),
+                    crear('bt-sub', d.n.toLocaleString('es-ES') + ' veces · puesto #' + d.puesto + ' · ' +
+                          d.pct.toLocaleString('es-ES') + ' % de las palabras analizadas')
+                );
+                if (d.autores && d.autores.length) {
+                    const caja = crear('bt-autores', 'Quién más la usa:');
+                    d.autores.forEach(a => caja.appendChild(crear('', '👤 ' + a[0] + ': ' + a[1].toLocaleString('es-ES'))));
+                    tip.appendChild(caja);
+                }
+                tip.hidden = false;
+                moverTooltip(evento);
+            }
+
+            function moverTooltip(evento) {
+                const margen = 14;
+                let x = evento.clientX + margen, y = evento.clientY + margen;
+                if (x + tip.offsetWidth > window.innerWidth - 8) x = evento.clientX - tip.offsetWidth - margen;
+                if (y + tip.offsetHeight > window.innerHeight - 8) y = evento.clientY - tip.offsetHeight - margen;
+                tip.style.left = Math.max(8, x) + 'px';
+                tip.style.top = Math.max(8, y) + 'px';
+            }
+
+            function ocultarFoco() {
+                burbujaActual = null;
+                foco.replaceChildren();
+                burbujasSvg.classList.remove('hay-foco');
+                tip.hidden = true;
+            }
+
+            burbujasSvg.addEventListener('mouseover', (e) => {
+                const g = e.target.closest('.burbuja');
+                if (!g || g === burbujaActual) return;
+                burbujaActual = g;
+                mostrarFoco(g);
+                mostrarTooltip(g, e);
+            });
+            burbujasSvg.addEventListener('mousemove', (e) => { if (burbujaActual) moverTooltip(e); });
+            burbujasSvg.addEventListener('mouseout', (e) => {
+                const destino = e.relatedTarget && e.relatedTarget.closest ? e.relatedTarget.closest('.burbuja') : null;
+                if (!destino) ocultarFoco();
+            });
+
+            function abrirBurbujas() {
+                burbujasWrap.classList.add('expandido');
+                document.body.classList.add('burbujas-abiertas');
+                burbujasWrap.setAttribute('aria-expanded', 'true');
+                document.getElementById('burbujasPista').style.display = 'none';
+                ocultarFoco();
+                document.getElementById('btnCerrarBurbujas').focus();
+            }
+
+            burbujasWrap.addEventListener('click', (e) => {
+                if (!burbujasWrap.classList.contains('expandido')) {
+                    abrirBurbujas();
+                } else if (e.target === burbujasWrap || e.target.id === 'btnCerrarBurbujas') {
+                    cerrarBurbujas();   // clic en el fondo o en la ✕
+                }
+            });
+            burbujasWrap.addEventListener('keydown', (e) => {
+                if ((e.key === 'Enter' || e.key === ' ') && e.target === burbujasWrap &&
+                    !burbujasWrap.classList.contains('expandido')) {
+                    e.preventDefault();
+                    abrirBurbujas();
+                }
+            });
+        }
 
         async function descargarInformePDF(token) {
             const boton = document.getElementById('btnDescargarPdf');
@@ -446,15 +657,25 @@
             }
         }
 
-        function descargarPlotly(divId, filename) {
-            const el = document.getElementById(divId).querySelector('.plotly-graph-div');
-            if(el) {
-                Plotly.downloadImage(el, {
+        async function descargarPlotly(divId, filename) {
+            const cont = document.getElementById(divId);
+            if (!cont) return;
+            // div_id de Plotly puede ser el propio gráfico o un contenedor suyo
+            const el = cont.classList.contains('plotly-graph-div') ? cont : cont.querySelector('.plotly-graph-div');
+            if (!el) return;
+            // Las gráficas son transparentes en pantalla; el PNG descargado lleva
+            // un fondo sólido acorde al tema para que se vea bien en cualquier visor.
+            const fondo = document.documentElement.classList.contains('dark') ? '#1e293b' : '#ffffff';
+            await Plotly.relayout(el, { paper_bgcolor: fondo, plot_bgcolor: fondo });
+            try {
+                await Plotly.downloadImage(el, {
                     format: 'png',
                     width: 1400,
                     height: 700,
                     filename: filename
                 });
+            } finally {
+                Plotly.relayout(el, { paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)' });
             }
         }
 

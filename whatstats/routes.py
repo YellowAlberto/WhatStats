@@ -10,23 +10,31 @@ from collections import Counter
 import pandas as pd
 import numpy as np
 
-import plotly.express as px
-import plotly.graph_objects as go
-import plotly.io as pio
-
 from fastapi import APIRouter, File, UploadFile, Request, Form
 from fastapi.responses import HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from .config import FRASES_MULTIMEDIA, FRASES_ELIMINADO, PATRON_EMOJI, DIAS_SEMANA_ES
 from .chat_parser import procesar_chat_whatsapp
+from .chart_style import (
+    a_html, barras_horizontales, barras_verticales, reloj_actividad_horaria, piruletas, mapa_calor,
+)
 from .zip_utils import es_zip, extraer_txt_de_zip, ErrorZip
-from .bubble_chart import generar_mapa_burbujas
+from .chat_name import nombre_chat_desde_archivo
+from .bubble_chart import generar_mapas_burbujas
 from .pdf_charts import grafico_barh_mpl, grafico_barv_mpl, grafico_linea_mpl, grafico_heatmap_mpl
 from .pdf_report import generar_informe_pdf
 from .pdf_cache import CACHE_DATOS_PDF, _guardar_datos_pdf_en_cache
 
 router = APIRouter()
+
+
+def _json_seguro(datos):
+    """JSON listo para incrustar dentro de un <script>: se escapan los '<' para
+    que ningún nombre o palabra del chat pueda cerrar la etiqueta <script>."""
+    return json.dumps(datos, ensure_ascii=False).replace("<", "\\u003c")
+
+
 templates = Jinja2Templates(directory="templates")
 
 
@@ -56,9 +64,10 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
     # Si es un .zip (exportación de WhatsApp), se extrae solo el .txt del chat.
     # Se lee directamente del archivo temporal, sin cargar el zip entero en
     # memoria (puede traer fotos y audios).
+    nombre_interno = None
     if es_zip(file.file):
         try:
-            contenido = extraer_txt_de_zip(file.file, LIMITE_TAMANO_MB * 1024 * 1024)
+            contenido, nombre_interno = extraer_txt_de_zip(file.file, LIMITE_TAMANO_MB * 1024 * 1024)
         except ErrorZip as e:
             return templates.TemplateResponse(
                 name="error.html",
@@ -84,6 +93,9 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
             request=request,
             status_code=413,
         )
+
+    # El nombre del grupo no está en el texto del chat: se deduce del nombre del archivo
+    nombre_grupo = nombre_chat_desde_archivo(file.filename, nombre_interno)
 
     df = procesar_chat_whatsapp(contenido)
     del contenido  # ya no hace falta el texto en crudo, liberamos su memoria cuanto antes
@@ -128,19 +140,22 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
     # 1. Gráfica: Ranking de Miembros
     top_autores = total_mensajes_usuario.head(15).reset_index()
     top_autores.columns = ['Usuario', 'Mensajes']
-    fig1 = px.bar(top_autores.sort_values('Mensajes'), x='Mensajes', y='Usuario', orientation='h', text='Mensajes', title='Miembros más activos', color='Mensajes', color_continuous_scale='tealgrn')
-    fig1.update_traces(texttemplate='%{text:,}', textposition='outside', cliponaxis=False)
-    fig1.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, margin=dict(t=50,b=20,l=140,r=80), xaxis=dict(visible=False), yaxis=dict(title='', ticksuffix='  '))
-    g1 = pio.to_html(fig1, full_html=False, include_plotlyjs=False, div_id='g-ranking', config={'displayModeBar': False})
+    fig1 = barras_horizontales(
+        top_autores.sort_values('Mensajes'), 'Mensajes', 'Usuario',
+        titulo='Miembros más activos', podio=True,
+        hover="<b>%{y}</b><br>%{x:,} mensajes<extra></extra>",
+    )
+    g1 = a_html(fig1, 'g-ranking')
     del fig1
 
     # 2. Gráfica: Actividad por Hora
     m_hora = df['Hora_Int'].value_counts().sort_index().reindex(range(0, 24), fill_value=0).reset_index()
     m_hora.columns = ['Hora', 'Mensajes']
-    fig2 = px.line(m_hora, x='Hora', y='Mensajes', title='Actividad por hora del día', markers=True)
-    fig2.update_traces(line=dict(color='#128C7E', width=3))
-    fig2.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(t=50,b=20,l=20,r=20), xaxis=dict(title='', tickmode='linear', tick0=0, dtick=2), yaxis=dict(title=''))
-    g2 = pio.to_html(fig2, full_html=False, include_plotlyjs=False, div_id='g-horas', config={'displayModeBar': False})
+    fig2 = reloj_actividad_horaria(
+        m_hora, titulo='Actividad por hora del día',
+        subtitulo='Cada barra es una hora del día (las 0h arriba, en sentido horario); la más larga es la hora pico',
+    )
+    g2 = a_html(fig2, 'g-horas')
     del fig2
 
     # 3. Gráfica: Matriz de Afinidad Cruzada
@@ -149,26 +164,34 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
     matriz_interaccion = pd.crosstab(df_conv_activa['Autor'], df_conv_activa['Autor_Anterior']).reindex(index=usuarios_top_15, columns=usuarios_top_15, fill_value=0)
     matriz_normalizada = matriz_interaccion.div(matriz_interaccion.sum(axis=1), axis=0).fillna(0) * 100
     matriz_valores = matriz_normalizada.values.astype(float)
-    etiquetas_texto = np.round(matriz_valores, 1).astype(str)
-    texto_celdas = np.where(np.eye(matriz_valores.shape[0], dtype=bool), "-", np.char.add(etiquetas_texto, "%"))
+    diagonal = np.eye(matriz_valores.shape[0], dtype=bool)
+    matriz_para_dibujar = np.where(diagonal, np.nan, matriz_valores)  # la diagonal (uno mismo) queda en blanco
+    # Solo se escribe el porcentaje en las celdas relevantes (>= 5%) para que no sea ilegible
+    texto_celdas = np.where(
+        diagonal | (matriz_valores < 5), "",
+        np.char.add(np.round(matriz_valores).astype(int).astype(str), "%")
+    )
 
-    fig3 = go.Figure(data=go.Heatmap(z=matriz_valores, x=matriz_normalizada.columns, y=matriz_normalizada.index, colorscale='GnBu', text=texto_celdas, texttemplate="%{text}", hoverinfo="text"))
-    fig3.update_layout(
-        title='Matriz de Afinidad Cruzada (% de respuestas por fila)<br>'
-              '<span style="font-size:0.6em;color:#94a3b8">Por cada miembro (fila), qué % de sus respuestas rápidas (menos de 15 min) van dirigidas a cada otro miembro (columna)</span>',
-        template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', height=650, margin=dict(t=90, b=120, l=140, r=20), yaxis=dict(autorange="reversed"))
-    fig3.update_xaxes(tickangle=-45)
-    g3 = pio.to_html(fig3, full_html=False, include_plotlyjs=False, div_id='g-matriz', config={'displayModeBar': False})
+    fig3 = mapa_calor(
+        matriz_para_dibujar, list(matriz_normalizada.columns), list(matriz_normalizada.index),
+        titulo='Afinidad cruzada',
+        subtitulo='Por cada miembro (fila), qué % de sus respuestas rápidas (menos de 15 min) van dirigidas a cada otro miembro (columna)',
+        texto=texto_celdas,
+        hover="<b>%{y}</b> responde a <b>%{x}</b><br>%{z:.1f}% de sus respuestas rápidas<extra></extra>",
+        margen=dict(t=90, b=20, l=20, r=20), tickangle_x=-45,
+    )
+    g3 = a_html(fig3, 'g-matriz')
     del fig3
 
     # 4. Gráfica: Evolución Anual
     m_tiempo = df['Año'].value_counts().sort_index().reset_index()
     m_tiempo.columns = ['Año', 'Mensajes']
     m_tiempo['Año'] = m_tiempo['Año'].astype(str)
-    fig4 = px.bar(m_tiempo, x='Año', y='Mensajes', text='Mensajes', title='Mensajes enviados por año')
-    fig4.update_traces(marker_color='#128C7E', texttemplate='%{text:,}', textposition='outside', cliponaxis=False)
-    fig4.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(t=50,b=20,l=20,r=20), xaxis=dict(title=''), yaxis=dict(visible=False))
-    g4 = pio.to_html(fig4, full_html=False, include_plotlyjs=False, div_id='g-evolucion', config={'displayModeBar': False})
+    fig4 = barras_verticales(
+        m_tiempo, 'Año', 'Mensajes', titulo='Mensajes por año',
+        hover="<b>%{x}</b><br>%{y:,} mensajes<extra></extra>",
+    )
+    g4 = a_html(fig4, 'g-evolucion')
     del fig4
 
     # =========================================================================
@@ -195,26 +218,31 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
     df_tiempo = df_convivencia.sort_values(by='Tiempo Respuesta (min)', ascending=False)
     df_tiempo['Texto_Formateado'] = df_tiempo['Tiempo Respuesta (min)'].apply(formatear_min_seg)
 
-    fig5_tiempo = px.bar(df_tiempo, x='Tiempo Respuesta (min)', y='Usuario', orientation='h',
-                          title='⏱️ Tiempo de Respuesta Medio por Miembro<br>'
-                                '<span style="font-size:0.6em;color:#94a3b8">Minutos que tarda cada miembro, de media, en responder cuando alguien le escribe (solo se cuentan respuestas en menos de 2h)</span>',
-                          color='Tiempo Respuesta (min)', color_continuous_scale='tealgrn', text='Texto_Formateado')
-    fig5_tiempo.update_traces(textposition='outside', cliponaxis=False)
-    fig5_tiempo.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, height=550, margin=dict(t=80, b=40, l=140, r=80), xaxis=dict(visible=False), yaxis=dict(title='', ticksuffix='  '))
-    g5_tiempo = pio.to_html(fig5_tiempo, full_html=False, include_plotlyjs=False, div_id='g-tiempo', config={'displayModeBar': False})
+    df_tiempo_graf = df_tiempo.sort_values('Tiempo Respuesta (min)')
+    fig5_tiempo = barras_horizontales(
+        df_tiempo_graf, 'Tiempo Respuesta (min)', 'Usuario',
+        titulo='Tiempo de respuesta medio',
+        subtitulo='Lo que tarda cada miembro, de media, en responder cuando alguien le escribe (solo respuestas en menos de 2 h)',
+        texto=df_tiempo_graf['Texto_Formateado'].tolist(), texto_formato='%{text}',
+        customdata=df_tiempo_graf['Texto_Formateado'].tolist(),
+        hover="<b>%{y}</b><br>Responde de media en %{customdata}<extra></extra>",
+    )
+    g5_tiempo = a_html(fig5_tiempo, 'g-tiempo')
     del fig5_tiempo
 
     # 5B. Mensajes Fantasma
     df_fantasma = df_convivencia.sort_values(by='Mensajes Fantasma (%)', ascending=False)
     df_fantasma['Texto_Porcentaje'] = df_fantasma['Mensajes Fantasma (%)'].apply(lambda x: f"{x:.1f}%")
 
-    fig5_fantasma = px.bar(df_fantasma, x='Mensajes Fantasma (%)', y='Usuario', orientation='h', text='Texto_Porcentaje',
-                            title='👻 Fantasmas del Grupo: Porcentaje de Vistos<br>'
-                                  '<span style="font-size:0.6em;color:#94a3b8">% de mensajes de cada miembro que se quedan sin respuesta de nadie durante más de 3 horas ("en visto")</span>',
-                            color='Mensajes Fantasma (%)', color_continuous_scale='rdpu')
-    fig5_fantasma.update_traces(textposition='outside', cliponaxis=False)
-    fig5_fantasma.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, height=550, margin=dict(t=80, b=40, l=140, r=70), xaxis=dict(visible=False), yaxis=dict(title='', ticksuffix='  '))
-    g5_fantasma = pio.to_html(fig5_fantasma, full_html=False, include_plotlyjs=False, div_id='g-fantasma', config={'displayModeBar': False})
+    df_fantasma_graf = df_fantasma.sort_values('Mensajes Fantasma (%)')
+    fig5_fantasma = barras_horizontales(
+        df_fantasma_graf, 'Mensajes Fantasma (%)', 'Usuario',
+        titulo='Mensajes fantasma',
+        subtitulo='% de mensajes de cada miembro que se quedan sin respuesta de nadie durante más de 3 horas ("en visto")',
+        texto=df_fantasma_graf['Texto_Porcentaje'].tolist(), texto_formato='%{text}',
+        hover="<b>%{y}</b><br>%{x:.1f}% de sus mensajes sin respuesta<extra></extra>",
+    )
+    g5_fantasma = a_html(fig5_fantasma, 'g-fantasma')
     del fig5_fantasma
 
     # --- Gráfica de Palabras Clave Personalizadas ---
@@ -252,10 +280,15 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
 
     df.drop(columns=['Mensaje_Minus'], inplace=True)  # era una copia completa del texto: liberamos esa memoria ya
 
-    fig_palabras = px.bar(df_conceptos, x='Frecuencia', y='Concepto', orientation='h', text='Frecuencia', title='Frecuencia de palabras clave personalizadas', color='Frecuencia', color_continuous_scale='tealgrn', custom_data=['Detalle_Autores'])
-    fig_palabras.update_traces(texttemplate='%{text:,}', textposition='outside', cliponaxis=False, hovertemplate="<b>Palabra:</b> %{y}<br><b>Total en grupo:</b> %{x} veces<br><br><b>Desglose de uso:</b><br>%{customdata[0]}<extra></extra>")
-    fig_palabras.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, margin=dict(t=50,b=20,l=100,r=70), xaxis=dict(visible=False), yaxis=dict(title='', ticksuffix='  '))
-    g_palabras = pio.to_html(fig_palabras, full_html=False, include_plotlyjs=False, div_id='g-palabras', config={'displayModeBar': False})
+    fig_palabras = barras_horizontales(
+        df_conceptos, 'Frecuencia', 'Concepto',
+        titulo='Palabras clave',
+        customdata=df_conceptos[['Detalle_Autores']].values,
+        hover="<b>%{y}</b> · %{x:,} veces<br><br><b>Quién más la usa:</b><br>%{customdata[0]}<extra></extra>",
+        # Con muchas palabras (lista personalizada larga) se fija un alto propio y el recuadro hace scroll
+        altura=(26 * len(df_conceptos) + 110) if len(df_conceptos) > 25 else None,
+    )
+    g_palabras = a_html(fig_palabras, 'g-palabras')
     del fig_palabras
 
     # 6. Gráfica: Bubble Chart
@@ -280,7 +313,27 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
     top_100_palabras = pd.Series(palabras_limpias).value_counts().reset_index().head(100)
     top_100_palabras.columns = ['Palabra', 'Frecuencia']
 
-    g6_base64 = generar_mapa_burbujas(top_100_palabras)
+    g6_base64, g6_svg = generar_mapas_burbujas(top_100_palabras)
+
+    # Detalle de cada burbuja para el tooltip interactivo (solo agregados: la
+    # palabra, cuántas veces se usa, su % y quién más la usa; nunca mensajes).
+    detalle_burbujas = {}
+    if not top_100_palabras.empty:
+        palabras_top = set(top_100_palabras['Palabra'])
+        uso_por_autor = {p: Counter() for p in palabras_top}
+        for autor, sub_df in df_solo_texto.groupby('Autor'):
+            texto_autor = " ".join(sub_df['Mensaje'].astype(str)).lower()
+            for p in re.findall(r'\b[a-záéíóúñ]+\b', texto_autor):
+                if p in palabras_top:
+                    uso_por_autor[p][autor] += 1
+        total_palabras = max(len(palabras_limpias), 1)
+        for puesto, (palabra, frecuencia) in enumerate(zip(top_100_palabras['Palabra'], top_100_palabras['Frecuencia']), start=1):
+            detalle_burbujas[palabra] = {
+                "n": int(frecuencia),
+                "puesto": puesto,
+                "pct": round(int(frecuencia) / total_palabras * 100, 2),
+                "autores": [[a, int(c)] for a, c in uso_por_autor[palabra].most_common(3)],
+            }
 
     # =========================================================================
     # 7. 🗓️ NUEVO: Heatmap de actividad Día de la Semana × Hora
@@ -292,21 +345,14 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
     )
     tabla_heatmap.index = DIAS_SEMANA_ES
 
-    fig7 = go.Figure(data=go.Heatmap(
-        z=tabla_heatmap.values,
-        x=list(range(24)),
-        y=DIAS_SEMANA_ES,
-        colorscale='GnBu',
-        hovertemplate='<b>%{y}</b><br>Hora: %{x}h<br>Mensajes: %{z}<extra></extra>'
-    ))
-    fig7.update_layout(
-        title='🗓️ Mapa de Calor: Actividad por Día y Hora',
-        template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)',
-        height=450, margin=dict(t=50, b=40, l=90, r=20),
-        xaxis=dict(title='Hora del día', tickmode='linear', tick0=0, dtick=2),
-        yaxis=dict(title='', autorange='reversed')
+    fig7 = mapa_calor(
+        tabla_heatmap.values, list(range(24)), DIAS_SEMANA_ES,
+        titulo='Actividad por día y hora',
+        hover='<b>%{y}</b><br>%{x}:00 h<br>%{z:,} mensajes<extra></extra>',
+        margen=dict(t=60, b=20, l=20, r=20),
+        titulo_x='Hora del día', dtick_x=2,
     )
-    g7 = pio.to_html(fig7, full_html=False, include_plotlyjs=False, div_id='g-heatmap-semana', config={'displayModeBar': False})
+    g7 = a_html(fig7, 'g-heatmap-semana')
     del fig7
 
     # =========================================================================
@@ -320,10 +366,11 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
     df_multimedia.columns = ['Usuario', 'Cantidad']
     df_multimedia = df_multimedia.sort_values('Cantidad', ascending=True)
 
-    fig8 = px.bar(df_multimedia, x='Cantidad', y='Usuario', orientation='h', text='Cantidad', title='📎 Multimedia Enviado por Miembro', color='Cantidad', color_continuous_scale='purpor')
-    fig8.update_traces(texttemplate='%{text:,}', textposition='outside', cliponaxis=False)
-    fig8.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, height=550, margin=dict(t=50,b=20,l=140,r=70), xaxis=dict(visible=False), yaxis=dict(title='', ticksuffix='  '))
-    g8 = pio.to_html(fig8, full_html=False, include_plotlyjs=False, div_id='g-multimedia', config={'displayModeBar': False})
+    fig8 = piruletas(
+        df_multimedia, 'Cantidad', 'Usuario', titulo='Multimedia enviado',
+        hover="<b>%{y}</b><br>%{x:,} archivos multimedia<extra></extra>",
+    )
+    g8 = a_html(fig8, 'g-multimedia')
     del fig8
 
     # 8B. Mensajes Eliminados por usuario
@@ -332,10 +379,11 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
     df_eliminados.columns = ['Usuario', 'Cantidad']
     df_eliminados = df_eliminados.sort_values('Cantidad', ascending=True)
 
-    fig8b = px.bar(df_eliminados, x='Cantidad', y='Usuario', orientation='h', text='Cantidad', title='🗑️ Mensajes Eliminados por Miembro', color='Cantidad', color_continuous_scale='burg')
-    fig8b.update_traces(texttemplate='%{text:,}', textposition='outside', cliponaxis=False)
-    fig8b.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, height=550, margin=dict(t=50,b=20,l=140,r=70), xaxis=dict(visible=False), yaxis=dict(title='', ticksuffix='  '))
-    g8b = pio.to_html(fig8b, full_html=False, include_plotlyjs=False, div_id='g-eliminados', config={'displayModeBar': False})
+    fig8b = piruletas(
+        df_eliminados, 'Cantidad', 'Usuario', titulo='Mensajes eliminados',
+        hover="<b>%{y}</b><br>%{x:,} mensajes eliminados<extra></extra>",
+    )
+    g8b = a_html(fig8b, 'g-eliminados')
     del fig8b
 
     # =========================================================================
@@ -348,10 +396,13 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
     df_longitud.columns = ['Usuario', 'Caracteres']
     df_longitud = df_longitud.sort_values('Caracteres', ascending=True)
 
-    fig9 = px.bar(df_longitud, x='Caracteres', y='Usuario', orientation='h', text='Caracteres', title='✍️ Longitud Media de Mensaje por Miembro (caracteres)', color='Caracteres', color_continuous_scale='tealgrn')
-    fig9.update_traces(textposition='outside', cliponaxis=False)
-    fig9.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, height=550, margin=dict(t=50,b=20,l=140,r=70), xaxis=dict(visible=False), yaxis=dict(title='', ticksuffix='  '))
-    g9 = pio.to_html(fig9, full_html=False, include_plotlyjs=False, div_id='g-longitud', config={'displayModeBar': False})
+    fig9 = barras_horizontales(
+        df_longitud, 'Caracteres', 'Usuario', titulo='Longitud media de mensaje',
+        subtitulo='Caracteres por mensaje de texto',
+        texto_formato='%{text:,.1f}',
+        hover="<b>%{y}</b><br>%{x:,.1f} caracteres de media<extra></extra>",
+    )
+    g9 = a_html(fig9, 'g-longitud')
     del fig9
 
     # =========================================================================
@@ -366,10 +417,12 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
         conteo_emojis = Counter(todos_los_emojis).most_common(15)
         df_emojis = pd.DataFrame(conteo_emojis, columns=['Emoji', 'Frecuencia']).sort_values('Frecuencia', ascending=True)
 
-        fig10 = px.bar(df_emojis, x='Frecuencia', y='Emoji', orientation='h', text='Frecuencia', title='😂 Emojis Más Usados en el Grupo', color='Frecuencia', color_continuous_scale='sunsetdark')
-        fig10.update_traces(texttemplate='%{text:,}', textposition='outside', cliponaxis=False)
-        fig10.update_layout(template='plotly_dark', paper_bgcolor='rgba(30,41,59,1)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False, height=550, margin=dict(t=50,b=20,l=70,r=70), xaxis=dict(visible=False), yaxis=dict(title='', tickfont=dict(size=26), ticksuffix='  '))
-        g10 = pio.to_html(fig10, full_html=False, include_plotlyjs=False, div_id='g-emojis', config={'displayModeBar': False})
+        fig10 = barras_horizontales(
+            df_emojis, 'Frecuencia', 'Emoji', titulo='Emojis más usados',
+            hover="<b>%{y}</b><br>%{x:,} veces<extra></extra>",
+            tamano_etiqueta_y=18,
+        )
+        g10 = a_html(fig10, 'g-emojis')
         del fig10
 
     ranking_tabla = [{"usuario": u, "cantidad": m} for u, m in total_mensajes_usuario.items()]
@@ -443,6 +496,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
     return templates.TemplateResponse(
         name="resultados.html",
         context={
+            "nombre_grupo": nombre_grupo,
             "total_mensajes": len(df),
             "total_multimedia": total_multimedia,
             "total_eliminados": total_eliminados,
@@ -451,7 +505,8 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
             "g5_tiempo": g5_tiempo,
             "g5_fantasma": g5_fantasma,
             "g_palabras": g_palabras,
-            "g6": g6_base64,
+            "g6_svg": g6_svg,
+            "burbujas_json": _json_seguro(detalle_burbujas),
             "g7": g7,
             "g8": g8,
             "g8b": g8b,
@@ -461,7 +516,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
             # Perfil por usuario (para el panel que se abre al clicar una fila
             # de la tabla de ranking). Se manda ya serializado a JSON: así el
             # HTML no depende de ningún filtro extra de Jinja2.
-            "perfiles_usuario_json": json.dumps(perfiles_usuario, ensure_ascii=False),
+            "perfiles_usuario_json": _json_seguro(perfiles_usuario),
         },
         request=request
     )

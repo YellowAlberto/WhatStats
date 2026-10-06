@@ -29,7 +29,7 @@ def es_zip(fileobj):
 
 
 def extraer_txt_de_zip(fileobj, limite_bytes):
-    """Devuelve los bytes del .txt del chat contenido en el zip.
+    """Devuelve (bytes, nombre_interno) del .txt del chat contenido en el zip.
 
     `limite_bytes` es el tamaño máximo permitido del .txt ya descomprimido;
     se comprueba ANTES de descomprimir y también mientras se lee, para
@@ -74,4 +74,4 @@ def extraer_txt_de_zip(fileobj, limite_bytes):
         if len(contenido) > limite_bytes:
             raise ErrorZip("El chat dentro del .zip es demasiado grande para procesarlo.", status_code=413)
 
-        return contenido
+        return contenido, elegido.filename

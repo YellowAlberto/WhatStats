@@ -38,14 +38,14 @@
         <span id="iconoTema" aria-hidden="true">🌙</span>
     </button>
 
-    <div class="max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 gap-8 bg-white dark:bg-slate-800 p-6 md:p-8 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700">
+    <main class="max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 gap-8 bg-white dark:bg-slate-800 p-6 md:p-8 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700">
 
         <div class="flex flex-col justify-center space-y-6 border-b md:border-b-0 md:border-r border-slate-200 dark:border-slate-700 pb-6 md:pb-0 md:pr-8">
             <div>
-                <h2 class="text-xl font-bold text-teal-600 dark:text-teal-400 flex items-center gap-2">
+                <h2 class="text-xl font-bold text-teal-700 dark:text-teal-400 flex items-center gap-2">
                     💡 ¿Cómo exportar tu chat?
                 </h2>
-                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Sigue estos sencillos pasos desde tu teléfono móvil para conseguir el archivo de tu chat.</p>
+                <p class="text-xs text-slate-600 dark:text-slate-400 mt-1">Sigue estos sencillos pasos desde tu teléfono móvil para conseguir el archivo de tu chat.</p>
             </div>
 
             <div class="space-y-4 text-sm">
@@ -82,9 +82,9 @@
         <div class="flex flex-col justify-center space-y-6">
             <div class="text-center md:text-left">
                 <h1 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-                    📊 Analizador <span class="text-teal-600 dark:text-teal-400">WhatsApp Web</span>
+                    📊 Analizador <span class="text-teal-700 dark:text-teal-400">WhatsApp Web</span>
                 </h1>
-                <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Genera estadísticas, rankings de actividad e historiales de convivencia al instante.</p>
+                <p class="text-sm text-slate-600 dark:text-slate-400 mt-1">Genera estadísticas, rankings de actividad e historiales de convivencia al instante.</p>
             </div>
 
             <form action="/analizar" method="post" enctype="multipart/form-data" class="space-y-4" id="analisisForm">
@@ -93,31 +93,31 @@
                     <label for="fileInput" class="sr-only">Subir archivo de chat de WhatsApp exportado (.zip o .txt)</label>
                     <input type="file" id="fileInput" name="file" accept=".txt,.zip,application/zip,application/x-zip-compressed,text/plain" required aria-label="Subir archivo de chat de WhatsApp exportado (.zip o .txt)" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
 
-                    <div id="fileIcon" class="mx-auto w-12 h-12 mb-3 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xl text-slate-500 dark:text-slate-400 group-hover:bg-teal-500 group-hover:text-slate-950 transition duration-300">
+                    <div id="fileIcon" class="mx-auto w-12 h-12 mb-3 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xl text-slate-600 dark:text-slate-400 group-hover:bg-teal-500 group-hover:text-slate-950 transition duration-300">
                         📄
                     </div>
 
                     <p id="fileText" class="text-slate-800 dark:text-slate-200 font-bold text-sm group-hover:text-teal-600 dark:group-hover:text-teal-400 transition">Haz clic aquí o arrastra tu chat (.zip o .txt)</p>
-                    <p id="fileSubtext" class="text-xs text-slate-500 mt-1">Se admite el .zip tal cual lo exporta WhatsApp, o el .txt suelto</p>
+                    <p id="fileSubtext" class="text-xs text-slate-600 mt-1 dark:text-slate-400">Se admite el .zip tal cual lo exporta WhatsApp, o el .txt suelto</p>
                 </div>
 
                 <div class="flex flex-col space-y-1">
-                    <label for="customWords" class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">🏷️ Palabras Clave a Buscar (Opcional):</label>
+                    <label for="customWords" class="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">🏷️ Palabras Clave a Buscar (Opcional):</label>
                     <input type="text" id="customWords" name="custom_words" placeholder="Ej: lol, Kebab, Futbol, Llorar, TFG" class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-teal-600 dark:focus:border-teal-400 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-600 transition">
-                    <p class="text-[11px] text-slate-500">Separa las palabras por comas. Si lo dejas vacío se usará la lista de fábrica.</p>
+                    <p class="text-[11px] text-slate-600 dark:text-slate-400">Separa las palabras por comas. Si lo dejas vacío se usará la lista de fábrica.</p>
                 </div>
 
-                <button type="submit" id="submitBtn" class="w-full bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 font-black py-3.5 px-4 rounded-xl transition shadow-lg tracking-wide cursor-not-allowed text-sm transform flex items-center justify-center gap-2">
+                <button type="submit" id="submitBtn" class="w-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400 font-black py-3.5 px-4 rounded-xl transition shadow-lg tracking-wide cursor-not-allowed text-sm transform flex items-center justify-center gap-2">
                     <span id="submitBtnText">ESPERANDO ARCHIVO...</span>
                 </button>
-                <p id="loadingHint" class="hidden text-[11px] text-slate-500 text-center" role="status" aria-live="polite">⏳ Esto puede tardar unos segundos si el chat es grande. No cierres ni recargues la página.</p>
+                <p id="loadingHint" class="hidden text-[11px] text-slate-600 text-center dark:text-slate-400" role="status" aria-live="polite">⏳ Esto puede tardar unos segundos si el chat es grande. No cierres ni recargues la página.</p>
                 <div id="progressBarContainer" class="hidden w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden" aria-hidden="true">
                     <div class="h-full w-1/3 bg-teal-400 rounded-full animate-progress-indeterminate"></div>
                 </div>
             </form>
         </div>
 
-    </div>
+    </main>
 
     <script>
         function alternarTema() {
@@ -144,15 +144,15 @@
                 dropzone.classList.remove('border-slate-300', 'dark:border-slate-600', 'hover:border-teal-600', 'dark:hover:border-teal-500');
                 dropzone.classList.add('border-teal-600', 'dark:border-teal-500', 'bg-teal-950/20');
 
-                fileIcon.classList.remove('bg-slate-200', 'dark:bg-slate-700', 'text-slate-500', 'dark:text-slate-400');
+                fileIcon.classList.remove('bg-slate-200', 'dark:bg-slate-700', 'text-slate-600', 'dark:text-slate-400');
                 fileIcon.classList.add('bg-teal-500', 'text-slate-950');
                 fileIcon.innerHTML = "✅";
 
-                fileText.classList.add('text-teal-600', 'dark:text-teal-400');
+                fileText.classList.add('text-teal-700', 'dark:text-teal-400');
                 fileText.innerHTML = `¡Archivo cargado con éxito!`;
                 fileSubtext.innerHTML = `📌 <span class="text-slate-800 dark:text-slate-200 font-mono font-semibold">${nombreArchivo}</span>`;
 
-                submitBtn.classList.remove('bg-slate-200', 'dark:bg-slate-700', 'text-slate-500', 'dark:text-slate-400', 'cursor-not-allowed');
+                submitBtn.classList.remove('bg-slate-200', 'dark:bg-slate-700', 'text-slate-600', 'dark:text-slate-400', 'cursor-not-allowed');
                 submitBtn.classList.add('bg-teal-400', 'text-slate-950', 'hover:bg-teal-500', 'cursor-pointer', 'active:scale-[0.98]');
                 submitBtnText.innerHTML = "ANALIZAR GRUPO AHORA";
             }
