@@ -1,4 +1,4 @@
-/* Fondo decorativo de WhatStats (común a todas las páginas): "siluetas de gráficas".
+/* Fondo decorativo de WhatsInChat (común a todas las páginas): "siluetas de gráficas".
    Está en un CSS aparte para no depender de recompilar Tailwind.
    Capa fija y sin eventos, detrás de todo el contenido:
    - barras difuminadas que suben desde abajo (una de ellas en ámbar, como el

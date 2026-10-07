@@ -8,180 +8,226 @@
         // (o su sistema lo prefiere y nunca ha elegido nada) lo aplicamos
         // ya mismo, antes de que el CSS termine de cargar.
         (function() {
-            const temaGuardado = localStorage.getItem('whatstats-theme');
+            const temaGuardado = localStorage.getItem('whatsinchat-theme');
             const prefiereOscuro = window.matchMedia('(prefers-color-scheme: dark)').matches;
             const esOscuro = temaGuardado ? temaGuardado === 'dark' : prefiereOscuro;
             if (esOscuro) document.documentElement.classList.add('dark');
         })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WhatStats · Analizador de Chats de WhatsApp</title>
+    <title>WhatsInChat · Estadísticas de tu chat de grupo</title>
     <meta name="description" content="Sube tu chat de WhatsApp y obtén estadísticas detalladas de actividad, rankings y patrones de conversación, sin guardar ni compartir tus datos con nadie.">
-    <meta property="og:title" content="WhatStats · Analizador de Chats de WhatsApp">
+    <meta property="og:title" content="WhatsInChat · Estadísticas de tu chat de grupo">
     <meta property="og:description" content="Sube tu chat de WhatsApp y obtén estadísticas detalladas de actividad, rankings y patrones de conversación, de forma privada.">
     <meta property="og:type" content="website">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
-    <link rel="stylesheet" href="/static/css/tailwind.css">
+    <link rel="stylesheet" href="/static/css/inicio.css">
     <link rel="stylesheet" href="/static/css/fondo.css">
-    <style>
-        @keyframes progress-indeterminate {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(350%); }
-        }
-        .animate-progress-indeterminate {
-            animation: progress-indeterminate 1.1s ease-in-out infinite;
-        }
-    </style>
 </head>
-<body class="bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white min-h-screen flex flex-col justify-center items-center p-4 md:p-8">
+<body class="ini">
 
-    <button id="btnTema" onclick="alternarTema()" aria-label="Cambiar entre modo claro y oscuro" class="fixed top-4 right-4 z-50 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full w-10 h-10 flex items-center justify-center text-lg shadow-lg hover:scale-105 transition cursor-pointer">
-        <span id="iconoTema" aria-hidden="true">🌙</span>
-    </button>
+    <header class="ini-top">
+        <a class="ini-marca" href="/" aria-label="WhatsInChat, inicio"><span aria-hidden="true">📊</span><span class="ini-nombre">Whats<em>In</em>Chat</span></a>
+        <button id="btnTema" type="button" onclick="alternarTema()" aria-label="Cambiar entre modo claro y oscuro" class="ini-tema">
+            <span id="iconoTema" aria-hidden="true">☀️</span>
+        </button>
+    </header>
 
-    <main class="max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 gap-8 bg-white dark:bg-slate-800 p-6 md:p-8 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700">
+    <main class="ini-main">
 
-        <div class="flex flex-col justify-center space-y-6 border-b md:border-b-0 md:border-r border-slate-200 dark:border-slate-700 pb-6 md:pb-0 md:pr-8">
-            <div>
-                <h2 class="text-xl font-bold text-teal-700 dark:text-teal-400 flex items-center gap-2">
-                    💡 ¿Cómo exportar tu chat?
-                </h2>
-                <p class="text-xs text-slate-600 dark:text-slate-400 mt-1">Sigue estos sencillos pasos desde tu teléfono móvil para conseguir el archivo de tu chat.</p>
-            </div>
+        <section class="ini-hero">
+            <h1>Descubre qué esconde <span class="ini-acento">el chat de tu grupo</span></h1>
+            <p>Sube tu chat de WhatsApp y obtén al instante rankings, horas punta, palabras favoritas y el perfil de cada miembro. Gratis y sin registro.</p>
+        </section>
 
-            <div class="space-y-4 text-sm">
-                <div class="bg-slate-50 dark:bg-slate-900/50 p-3.5 rounded-xl border border-slate-200 dark:border-slate-700/60">
-                    <span class="inline-block bg-teal-500/20 text-teal-700 dark:text-teal-300 text-xs font-bold px-2 py-0.5 rounded mb-1">Android</span>
-                    <ol class="list-decimal list-inside space-y-1 text-slate-700 dark:text-slate-300 text-xs">
-                        <li>Entra al chat o grupo de WhatsApp.</li>
-                        <li>Toca los <span class="font-semibold text-slate-900 dark:text-white">3 puntos</span> de arriba a la derecha.</li>
-                        <li>Selecciona <span class="font-semibold text-slate-900 dark:text-white">Más</span> y luego <span class="font-semibold text-slate-900 dark:text-white">Exportar chat</span>.</li>
-                        <li>Elige <span class="text-rose-600 dark:text-rose-400 font-bold">SIN ARCHIVOS</span></li>
-                        <li>Guarda el archivo en tu dispositivo o envíatelo.</li>
-                        <li>Súbelo aquí tal cual (.zip o .txt), sin necesidad de extraerlo.</li>
-                    </ol>
-                </div>
+        <div class="ini-grid">
 
-                <div class="bg-slate-50 dark:bg-slate-900/50 p-3.5 rounded-xl border border-slate-200 dark:border-slate-700/60">
-                    <span class="inline-block bg-sky-500/20 text-sky-700 dark:text-sky-300 text-xs font-bold px-2 py-0.5 rounded mb-1">iPhone (iOS)</span>
-                    <ol class="list-decimal list-inside space-y-1 text-slate-700 dark:text-slate-300 text-xs">
-                        <li>Entra al chat o grupo y toca el <span class="font-semibold text-slate-900 dark:text-white">nombre del grupo</span> arriba.</li>
-                        <li>Toca los 3 puntos de arriba a la derecha.</li>
-                        <li>Selecciona <span class="font-semibold text-slate-900 dark:text-white">Exportar chat</span>.</li>
-                        <li>Elige <span class="text-rose-600 dark:text-rose-400 font-bold">SIN ARCHIVOS</span></li>
-                        <li>Guarda el documento en la app <span class="font-semibold text-slate-900 dark:text-white">Archivos</span> de tu iPhone.</li>
-                        <li>Súbelo aquí tal cual (.zip o .txt), sin necesidad de extraerlo.</li>
-                    </ol>
-                </div>
-            </div>
+            <section class="ini-card ini-subida" aria-labelledby="titulo-subida">
+                <h2 id="titulo-subida">1 · Sube tu chat</h2>
 
-            <p class="text-[11px] text-amber-700 dark:text-amber-400/90 leading-relaxed bg-amber-50 dark:bg-amber-500/10 p-3 rounded-xl border border-amber-400 dark:border-amber-500/20">
-                **Nota de Privacidad:** Tu archivo se procesa de forma temporal en el servidor únicamente para generar las estadísticas de esta página. No guardamos el chat, no lo almacenamos en ninguna base de datos ni lo compartimos con terceros ni con servicios externos de ningún tipo; una vez generado el panel, los datos se descartan.
-            </p>
-        </div>
+                <form action="/analizar" method="post" enctype="multipart/form-data" id="analisisForm">
 
-        <div class="flex flex-col justify-center space-y-6">
-            <div class="text-center md:text-left">
-                <h1 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-                    📊 Analizador <span class="text-teal-700 dark:text-teal-400">WhatsApp Web</span>
-                </h1>
-                <p class="text-sm text-slate-600 dark:text-slate-400 mt-1">Genera estadísticas, rankings de actividad e historiales de convivencia al instante.</p>
-            </div>
+                    <div id="dropzone" class="ini-drop">
+                        <label for="fileInput" class="ini-solo-lectores">Subir archivo de chat de WhatsApp exportado (.zip o .txt)</label>
+                        <input type="file" id="fileInput" name="file" accept=".txt,.zip,application/zip,application/x-zip-compressed,text/plain" required>
 
-            <form action="/analizar" method="post" enctype="multipart/form-data" class="space-y-4" id="analisisForm">
+                        <div class="ini-vacio">
+                            <div class="ini-drop-icono" aria-hidden="true">📄</div>
+                            <p class="ini-drop-titulo">Haz clic aquí o arrastra tu chat</p>
+                            <p class="ini-drop-sub">Archivo .zip tal cual lo exporta WhatsApp, o el .txt suelto</p>
+                        </div>
 
-                <div id="dropzone" class="group border-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-teal-600 dark:hover:border-teal-500 rounded-2xl p-8 text-center transition cursor-pointer relative bg-slate-50 dark:bg-slate-900/30">
-                    <label for="fileInput" class="sr-only">Subir archivo de chat de WhatsApp exportado (.zip o .txt)</label>
-                    <input type="file" id="fileInput" name="file" accept=".txt,.zip,application/zip,application/x-zip-compressed,text/plain" required aria-label="Subir archivo de chat de WhatsApp exportado (.zip o .txt)" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
-
-                    <div id="fileIcon" class="mx-auto w-12 h-12 mb-3 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xl text-slate-600 dark:text-slate-400 group-hover:bg-teal-500 group-hover:text-slate-950 transition duration-300">
-                        📄
+                        <div class="ini-archivo" id="archivoElegido">
+                            <div class="ini-archivo-icono" aria-hidden="true">✅</div>
+                            <div class="ini-archivo-datos">
+                                <p class="ini-archivo-nombre" id="archivoNombre"></p>
+                                <p class="ini-archivo-meta" id="archivoMeta"></p>
+                            </div>
+                            <button type="button" class="ini-quitar" id="btnQuitar" aria-label="Quitar el archivo elegido" title="Quitar archivo">✕</button>
+                        </div>
                     </div>
 
-                    <p id="fileText" class="text-slate-800 dark:text-slate-200 font-bold text-sm group-hover:text-teal-600 dark:group-hover:text-teal-400 transition">Haz clic aquí o arrastra tu chat (.zip o .txt)</p>
-                    <p id="fileSubtext" class="text-xs text-slate-600 mt-1 dark:text-slate-400">Se admite el .zip tal cual lo exporta WhatsApp, o el .txt suelto</p>
+                    <details class="ini-avanzadas">
+                        <summary>Opciones avanzadas</summary>
+                        <div class="ini-avanzadas-cuerpo">
+                            <label for="customWords">🏷️ Palabras clave a buscar (opcional)</label>
+                            <input type="text" id="customWords" name="custom_words" placeholder="Ej: lol, kebab, fútbol, llorar, TFG" class="ini-campo" autocomplete="off">
+                            <p class="ini-ayuda">Sepáralas por comas. Si lo dejas vacío se usará la lista de fábrica.</p>
+                        </div>
+                    </details>
+
+                    <button type="submit" id="submitBtn" class="ini-boton ini-boton-principal" disabled>
+                        <span id="submitBtnText">Analizar chat</span>
+                    </button>
+                    <p class="ini-nota-boton" id="notaBoton" role="status" aria-live="polite">Elige un archivo para empezar</p>
+
+                    <div class="ini-carga" id="cargando" hidden>
+                        <p role="status" aria-live="polite">⏳ Esto puede tardar unos segundos si el chat es grande. No cierres ni recargues la página.</p>
+                        <div class="ini-barra" aria-hidden="true"><div></div></div>
+                    </div>
+                </form>
+
+                <div class="ini-separador" aria-hidden="true">o</div>
+                <a href="/ejemplo" id="btnEjemplo" class="ini-boton ini-boton-sec">👀 Ver un ejemplo con un chat ficticio</a>
+
+                <div class="ini-privacidad">
+                    <span class="ini-candado" aria-hidden="true">🔒</span>
+                    <p><strong>Tu chat no se guarda.</strong> Se procesa al momento en el servidor solo para generar las estadísticas; no se almacena en ninguna base de datos ni se comparte con terceros ni con servicios externos. Al terminar, los datos se descartan.</p>
+                </div>
+            </section>
+
+            <aside class="ini-card ini-guia" aria-labelledby="titulo-guia">
+                <h2 id="titulo-guia">2 · ¿Cómo exportar tu chat?</h2>
+
+                <div class="ini-selector" role="tablist" aria-label="Sistema del teléfono">
+                    <button type="button" role="tab" id="tab-android" aria-controls="pasos-android" aria-selected="true">🤖 Android</button>
+                    <button type="button" role="tab" id="tab-ios" aria-controls="pasos-ios" aria-selected="false" tabindex="-1">🍎 iPhone</button>
                 </div>
 
-                <div class="flex flex-col space-y-1">
-                    <label for="customWords" class="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">🏷️ Palabras Clave a Buscar (Opcional):</label>
-                    <input type="text" id="customWords" name="custom_words" placeholder="Ej: lol, Kebab, Futbol, Llorar, TFG" class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-teal-600 dark:focus:border-teal-400 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-600 transition">
-                    <p class="text-[11px] text-slate-600 dark:text-slate-400">Separa las palabras por comas. Si lo dejas vacío se usará la lista de fábrica.</p>
-                </div>
+                <ol class="ini-pasos" id="pasos-android" role="tabpanel" aria-labelledby="tab-android">
+                    <li><span>Entra al chat o grupo de WhatsApp.</span></li>
+                    <li><span>Toca los <b>3 puntos</b> de arriba a la derecha.</span></li>
+                    <li><span>Selecciona <b>Más</b> y luego <b>Exportar chat</b>.</span></li>
+                    <li><span>Elige <span class="ini-clave">SIN ARCHIVOS</span>.</span></li>
+                    <li><span>Guarda el archivo en tu dispositivo o envíatelo.</span></li>
+                    <li><span>Súbelo aquí tal cual (.zip o .txt), sin extraerlo.</span></li>
+                </ol>
 
-                <button type="submit" id="submitBtn" class="w-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400 font-black py-3.5 px-4 rounded-xl transition shadow-lg tracking-wide cursor-not-allowed text-sm transform flex items-center justify-center gap-2">
-                    <span id="submitBtnText">ESPERANDO ARCHIVO...</span>
-                </button>
-                <p id="loadingHint" class="hidden text-[11px] text-slate-600 text-center dark:text-slate-400" role="status" aria-live="polite">⏳ Esto puede tardar unos segundos si el chat es grande. No cierres ni recargues la página.</p>
-                <div id="progressBarContainer" class="hidden w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden" aria-hidden="true">
-                    <div class="h-full w-1/3 bg-teal-400 rounded-full animate-progress-indeterminate"></div>
-                </div>
-            </form>
+                <ol class="ini-pasos" id="pasos-ios" role="tabpanel" aria-labelledby="tab-ios" hidden>
+                    <li><span>Entra al chat o grupo y toca el <b>nombre del grupo</b> arriba.</span></li>
+                    <li><span>Baja y toca <b>Exportar chat</b>.</span></li>
+                    <li><span>Elige <span class="ini-clave">SIN ARCHIVOS</span>.</span></li>
+                    <li><span>Guarda el documento en la app <b>Archivos</b> de tu iPhone.</span></li>
+                    <li><span>Súbelo aquí tal cual (.zip o .txt), sin extraerlo.</span></li>
+                </ol>
+
+                <p class="ini-guia-nota">💡 Elegir «sin archivos» hace que el chat pese poco y se analice más rápido.</p>
+            </aside>
         </div>
 
+        <ul class="ini-funciones" aria-label="Qué obtienes con el análisis">
+            <li class="ini-funcion"><span aria-hidden="true">🏆</span><b>Ranking</b><small>Quién escribe más y cuánto</small></li>
+            <li class="ini-funcion"><span aria-hidden="true">🕒</span><b>Horas punta</b><small>Cuándo se habla en el grupo</small></li>
+            <li class="ini-funcion"><span aria-hidden="true">🔮</span><b>Mapa de palabras</b><small>Las más usadas, en burbujas</small></li>
+            <li class="ini-funcion"><span aria-hidden="true">🧩</span><b>Afinidad</b><small>Quién responde a quién</small></li>
+            <li class="ini-funcion"><span aria-hidden="true">🎭</span><b>Perfiles</b><small>El estilo de cada miembro</small></li>
+        </ul>
     </main>
+
+    <footer class="ini-pie">WhatsInChat · Tu chat no se guarda ni se comparte</footer>
 
     <script>
         function alternarTema() {
             const esOscuroAhora = document.documentElement.classList.toggle('dark');
-            localStorage.setItem('whatstats-theme', esOscuroAhora ? 'dark' : 'light');
-            document.getElementById('iconoTema').textContent = esOscuroAhora ? '🌙' : '☀️';
+            try { localStorage.setItem('whatsinchat-theme', esOscuroAhora ? 'dark' : 'light'); } catch (e) {}
+            document.getElementById('iconoTema').textContent = esOscuroAhora ? '☀️' : '🌙';
         }
-        document.getElementById('iconoTema').textContent = document.documentElement.classList.contains('dark') ? '🌙' : '☀️';
+        document.getElementById('iconoTema').textContent = document.documentElement.classList.contains('dark') ? '☀️' : '🌙';
 
         const fileInput = document.getElementById('fileInput');
         const dropzone = document.getElementById('dropzone');
-        const fileIcon = document.getElementById('fileIcon');
-        const fileText = document.getElementById('fileText');
-        const fileSubtext = document.getElementById('fileSubtext');
         const submitBtn = document.getElementById('submitBtn');
         const submitBtnText = document.getElementById('submitBtnText');
-        const loadingHint = document.getElementById('loadingHint');
+        const notaBoton = document.getElementById('notaBoton');
         const form = document.getElementById('analisisForm');
+        const NOTA_INICIAL = 'Elige un archivo para empezar';
 
-        fileInput.addEventListener('change', function() {
-            if (fileInput.files.length > 0) {
-                const nombreArchivo = fileInput.files[0].name;
+        function formatearTamano(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1).replace('.', ',') + ' MB';
+        }
 
-                dropzone.classList.remove('border-slate-300', 'dark:border-slate-600', 'hover:border-teal-600', 'dark:hover:border-teal-500');
-                dropzone.classList.add('border-teal-600', 'dark:border-teal-500', 'bg-teal-950/20');
-
-                fileIcon.classList.remove('bg-slate-200', 'dark:bg-slate-700', 'text-slate-600', 'dark:text-slate-400');
-                fileIcon.classList.add('bg-teal-500', 'text-slate-950');
-                fileIcon.innerHTML = "✅";
-
-                fileText.classList.add('text-teal-700', 'dark:text-teal-400');
-                fileText.innerHTML = `¡Archivo cargado con éxito!`;
-                fileSubtext.innerHTML = `📌 <span class="text-slate-800 dark:text-slate-200 font-mono font-semibold">${nombreArchivo}</span>`;
-
-                submitBtn.classList.remove('bg-slate-200', 'dark:bg-slate-700', 'text-slate-600', 'dark:text-slate-400', 'cursor-not-allowed');
-                submitBtn.classList.add('bg-teal-400', 'text-slate-950', 'hover:bg-teal-500', 'cursor-pointer', 'active:scale-[0.98]');
-                submitBtnText.innerHTML = "ANALIZAR GRUPO AHORA";
-            }
-        });
-
-        // Indicador de carga: al enviar el formulario, deshabilita el botón y muestra un spinner
-        form.addEventListener('submit', function() {
-            if (fileInput.files.length === 0) return;
-
+        function reiniciarSeleccion(mensaje) {
+            fileInput.value = '';
+            dropzone.classList.remove('con-archivo');
             submitBtn.disabled = true;
-            submitBtn.classList.add('cursor-wait', 'opacity-90');
-            submitBtn.classList.remove('active:scale-[0.98]');
+            notaBoton.textContent = mensaje || NOTA_INICIAL;
+        }
 
-            // Damos diseño Flexbox y alineación horizontal al span directamente
-            submitBtnText.classList.add('flex', 'items-center', 'justify-center', 'gap-2.5');
-
-            submitBtnText.innerHTML = `
-                <svg class="animate-spin h-4 w-4 text-slate-950" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                </svg>
-                <span>ANALIZANDO CHAT...</span>
-            `;
-            
-            submitBtn.classList.add('flex', 'items-center', 'justify-center');
-            loadingHint.classList.remove('hidden');
-            document.getElementById('progressBarContainer').classList.remove('hidden');
+        fileInput.addEventListener('change', function () {
+            if (fileInput.files.length === 0) { reiniciarSeleccion(); return; }
+            const archivo = fileInput.files[0];
+            if (!/\.(txt|zip)$/i.test(archivo.name)) {
+                reiniciarSeleccion('Ese archivo no vale: sube el .zip o el .txt que exporta WhatsApp.');
+                return;
+            }
+            document.getElementById('archivoNombre').textContent = archivo.name;
+            document.getElementById('archivoMeta').textContent = formatearTamano(archivo.size) + ' · listo para analizar';
+            dropzone.classList.add('con-archivo');
+            submitBtn.disabled = false;
+            notaBoton.textContent = '';
         });
+
+        document.getElementById('btnQuitar').addEventListener('click', function () { reiniciarSeleccion(); });
+
+        ['dragenter', 'dragover'].forEach(ev => dropzone.addEventListener(ev, () => dropzone.classList.add('arrastrando')));
+        ['dragleave', 'drop'].forEach(ev => dropzone.addEventListener(ev, () => dropzone.classList.remove('arrastrando')));
+
+        // Indicador de carga al enviar el formulario
+        form.addEventListener('submit', function () {
+            if (fileInput.files.length === 0) return;
+            submitBtn.disabled = true;
+            submitBtnText.textContent = '';
+            const giro = document.createElement('span');
+            giro.className = 'ini-spinner';
+            const texto = document.createElement('span');
+            texto.textContent = 'Analizando chat…';
+            submitBtnText.append(giro, texto);
+            submitBtnText.style.display = 'inline-flex';
+            submitBtnText.style.alignItems = 'center';
+            submitBtnText.style.gap = '.6rem';
+            document.getElementById('cargando').hidden = false;
+        });
+
+        // Botón de ejemplo: avisa de que está preparando el análisis
+        document.getElementById('btnEjemplo').addEventListener('click', function () {
+            this.textContent = '⏳ Preparando el ejemplo…';
+            this.style.pointerEvents = 'none';
+        });
+
+        // Guía de exportación: pestañas Android / iPhone
+        const pestanas = [document.getElementById('tab-android'), document.getElementById('tab-ios')];
+        function elegirSistema(indice) {
+            pestanas.forEach((boton, i) => {
+                const activa = i === indice;
+                boton.setAttribute('aria-selected', String(activa));
+                boton.tabIndex = activa ? 0 : -1;
+                document.getElementById(boton.getAttribute('aria-controls')).hidden = !activa;
+            });
+        }
+        pestanas.forEach((boton, i) => {
+            boton.addEventListener('click', () => elegirSistema(i));
+            boton.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+                    const nuevo = (i + 1) % pestanas.length;
+                    elegirSistema(nuevo);
+                    pestanas[nuevo].focus();
+                }
+            });
+        });
+        // En un iPhone o iPad se muestra directamente su guía
+        if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) elegirSistema(1);
     </script>
 
 </body>

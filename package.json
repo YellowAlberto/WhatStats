@@ -1,5 +1,5 @@
 {
-  "name": "whatstats-frontend-build",
+  "name": "whatsinchat-frontend-build",
   "private": true,
   "description": "No es una app Node: esto existe solo para compilar el CSS de Tailwind una vez (en local) y generar static/css/tailwind.css, que luego sirve FastAPI como archivo estático. Render no necesita Node para nada, solo Python.",
   "scripts": {

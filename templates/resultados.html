@@ -6,7 +6,7 @@
         // Igual que en index.html: aplica el tema guardado (o el del sistema)
         // antes de pintar, para que no haya "flash" del tema equivocado.
         (function() {
-            const temaGuardado = localStorage.getItem('whatstats-theme');
+            const temaGuardado = localStorage.getItem('whatsinchat-theme');
             const prefiereOscuro = window.matchMedia('(prefers-color-scheme: dark)').matches;
             const esOscuro = temaGuardado ? temaGuardado === 'dark' : prefiereOscuro;
             if (esOscuro) document.documentElement.classList.add('dark');
@@ -15,7 +15,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Panel de estadísticas de tu chat de WhatsApp: ranking de miembros, actividad por hora, tiempos de respuesta, emojis y más.">
     <meta name="robots" content="noindex">
-    <title>WhatStats · {{ nombre_grupo or "Panel Estadístico Completo" }}</title>
+    <title>WhatsInChat · {{ nombre_grupo or "Panel Estadístico Completo" }}</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
     <link rel="stylesheet" href="/static/css/tailwind.css">
     <link rel="stylesheet" href="/static/css/fondo.css">
@@ -41,6 +41,14 @@
         .grafico-wrap > div, .grafico-wrap .plotly-graph-div { height: 100%; width: 100%; }
         @media (min-width: 1024px) {
             .grafico-wrap { height: auto; flex: 1 1 0%; min-height: 0; }
+        }
+        /* En móvil/tablet, las gráficas anchas (matriz, día × hora) mantienen un ancho
+           mínimo y se desplazan en horizontal, en vez de apretarse hasta ser ilegibles */
+        .pista-desliza { display: none; }
+        @media (max-width: 1023px) {
+            .grafico-wrap.ancho-min { overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
+            .grafico-wrap.ancho-min > div, .grafico-wrap.ancho-min .plotly-graph-div { min-width: var(--minw, 640px); }
+            .pista-desliza { display: block; margin: .35rem 0 0; text-align: center; font-size: .75rem; color: #64748b; }
         }
 
         /* --- Mapa de conceptos interactivo (SVG) --- */
@@ -225,6 +233,19 @@
         .info-nombre { margin: 0; font-weight: 700; font-size: .95rem; }
         .info-criterio { margin: .15rem 0 0; font-size: .8rem; line-height: 1.4; color: #475569; }
         html.dark .info-criterio { color: #cbd5e1; }
+        /* Barra de gráficas compacta: las pestañas inactivas muestran solo el
+           icono (el nombre sale al pasar el cursor) y la activa muestra su nombre.
+           Así caben todas en una fila sin cortar ningún título. */
+        #tabs-container { gap: .2rem; }
+        .tab-btn { padding-left: .75rem !important; padding-right: .75rem !important; display: inline-flex; align-items: center; }
+        .tab-ico { font-size: 1.05rem; line-height: 1; }
+        .tab-txt {
+            display: inline-block; max-width: 0; opacity: 0; overflow: hidden; white-space: nowrap;
+            margin-left: 0; transition: max-width .28s ease, opacity .2s ease, margin-left .28s ease;
+        }
+        .tab-btn[aria-selected="true"] .tab-txt { max-width: 16rem; opacity: 1; margin-left: .5rem; }
+        #scroll-left-indicator, #scroll-right-indicator { transition-duration: .1s; }
+        @media (prefers-reduced-motion: reduce) { .tab-txt { transition: none; } }
     </style>
 </head>
 <body class="bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 min-h-screen lg:h-screen lg:overflow-hidden p-3 md:p-5 flex flex-col">
@@ -237,7 +258,7 @@
             </div>
             <div class="flex items-center gap-2">
                 <button id="btnTema" onclick="alternarTema()" aria-label="Cambiar entre modo claro y oscuro" class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full w-9 h-9 flex items-center justify-center text-base shadow hover:scale-105 transition cursor-pointer">
-                    <span id="iconoTema" aria-hidden="true">🌙</span>
+                    <span id="iconoTema" aria-hidden="true">☀️</span>
                 </button>
                 <a href="/" onclick="return confirm('¿Seguro que quieres salir? Perderás este panel de estadísticas y tendrás que volver a subir el chat para verlo de nuevo.');" class="bg-white dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-sm px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 transition font-medium">⬅ Analizar otro chat</a>
             </div>
@@ -267,52 +288,52 @@
                     </button>
 
                     <div id="tabs-container" role="tablist" aria-label="Gráficas disponibles" class="flex overflow-x-auto scrollbar-none gap-2 pb-px scroll-smooth px-2">
-                        <button onclick="activarPestana('pestana-ranking', this)" id="tab-pestana-ranking" role="tab" aria-selected="true" aria-controls="pestana-ranking" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-teal-600 dark:border-teal-400 text-teal-700 dark:text-teal-400 whitespace-nowrap transition cursor-pointer">
-                            📊 Miembros Activos
+                        <button onclick="activarPestana('pestana-ranking', this)" id="tab-pestana-ranking" role="tab" aria-selected="true" aria-controls="pestana-ranking" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-teal-600 dark:border-teal-400 text-teal-700 dark:text-teal-400 whitespace-nowrap transition cursor-pointer" title="Miembros Activos" aria-label="Miembros Activos">
+                            <span class="tab-ico" aria-hidden="true">📊</span><span class="tab-txt">Miembros Activos</span>
                         </button>
-                        <button onclick="activarPestana('pestana-horas', this)" id="tab-pestana-horas" role="tab" aria-selected="false" aria-controls="pestana-horas" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
-                            🕒 Actividad Horaria
+                        <button onclick="activarPestana('pestana-horas', this)" id="tab-pestana-horas" role="tab" aria-selected="false" aria-controls="pestana-horas" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer" title="Actividad Horaria" aria-label="Actividad Horaria">
+                            <span class="tab-ico" aria-hidden="true">🕒</span><span class="tab-txt">Actividad Horaria</span>
                         </button>
-                        <button onclick="activarPestana('pestana-heatmap', this)" id="tab-pestana-heatmap" role="tab" aria-selected="false" aria-controls="pestana-heatmap" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
-                            🗓️ Día × Hora
+                        <button onclick="activarPestana('pestana-heatmap', this)" id="tab-pestana-heatmap" role="tab" aria-selected="false" aria-controls="pestana-heatmap" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer" title="Día × Hora" aria-label="Día × Hora">
+                            <span class="tab-ico" aria-hidden="true">🗓️</span><span class="tab-txt">Día × Hora</span>
                         </button>
-                        <button onclick="activarPestana('pestana-matriz', this)" id="tab-pestana-matriz" role="tab" aria-selected="false" aria-controls="pestana-matriz" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
-                            🧩 Matriz de Afinidad
+                        <button onclick="activarPestana('pestana-matriz', this)" id="tab-pestana-matriz" role="tab" aria-selected="false" aria-controls="pestana-matriz" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer" title="Matriz de Afinidad" aria-label="Matriz de Afinidad">
+                            <span class="tab-ico" aria-hidden="true">🧩</span><span class="tab-txt">Matriz de Afinidad</span>
                         </button>
-                        <button onclick="activarPestana('pestana-evolucion', this)" id="tab-pestana-evolucion" role="tab" aria-selected="false" aria-controls="pestana-evolucion" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
-                            📅 Evolución Anual
+                        <button onclick="activarPestana('pestana-evolucion', this)" id="tab-pestana-evolucion" role="tab" aria-selected="false" aria-controls="pestana-evolucion" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer" title="Evolución Anual" aria-label="Evolución Anual">
+                            <span class="tab-ico" aria-hidden="true">📅</span><span class="tab-txt">Evolución Anual</span>
                         </button>
-                        <button onclick="activarPestana('pestana-tiempo', this)" id="tab-pestana-tiempo" role="tab" aria-selected="false" aria-controls="pestana-tiempo" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
-                            ⏱️ Tiempos de Respuesta
+                        <button onclick="activarPestana('pestana-tiempo', this)" id="tab-pestana-tiempo" role="tab" aria-selected="false" aria-controls="pestana-tiempo" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer" title="Tiempos de Respuesta" aria-label="Tiempos de Respuesta">
+                            <span class="tab-ico" aria-hidden="true">⏱️</span><span class="tab-txt">Tiempos de Respuesta</span>
                         </button>
-                        <button onclick="activarPestana('pestana-fantasma', this)" id="tab-pestana-fantasma" role="tab" aria-selected="false" aria-controls="pestana-fantasma" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
-                            👻 Mensajes Fantasma
+                        <button onclick="activarPestana('pestana-fantasma', this)" id="tab-pestana-fantasma" role="tab" aria-selected="false" aria-controls="pestana-fantasma" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer" title="Mensajes Fantasma" aria-label="Mensajes Fantasma">
+                            <span class="tab-ico" aria-hidden="true">👻</span><span class="tab-txt">Mensajes Fantasma</span>
                         </button>
-                        <button onclick="activarPestana('pestana-multimedia', this)" id="tab-pestana-multimedia" role="tab" aria-selected="false" aria-controls="pestana-multimedia" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
-                            📎 Multimedia
+                        <button onclick="activarPestana('pestana-multimedia', this)" id="tab-pestana-multimedia" role="tab" aria-selected="false" aria-controls="pestana-multimedia" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer" title="Multimedia" aria-label="Multimedia">
+                            <span class="tab-ico" aria-hidden="true">📎</span><span class="tab-txt">Multimedia</span>
                         </button>
-                        <button onclick="activarPestana('pestana-eliminados', this)" id="tab-pestana-eliminados" role="tab" aria-selected="false" aria-controls="pestana-eliminados" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
-                            🗑️ Eliminados
+                        <button onclick="activarPestana('pestana-eliminados', this)" id="tab-pestana-eliminados" role="tab" aria-selected="false" aria-controls="pestana-eliminados" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer" title="Eliminados" aria-label="Eliminados">
+                            <span class="tab-ico" aria-hidden="true">🗑️</span><span class="tab-txt">Eliminados</span>
                         </button>
-                        <button onclick="activarPestana('pestana-longitud', this)" id="tab-pestana-longitud" role="tab" aria-selected="false" aria-controls="pestana-longitud" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
-                            ✍️ Longitud de Mensaje
+                        <button onclick="activarPestana('pestana-longitud', this)" id="tab-pestana-longitud" role="tab" aria-selected="false" aria-controls="pestana-longitud" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer" title="Longitud de Mensaje" aria-label="Longitud de Mensaje">
+                            <span class="tab-ico" aria-hidden="true">✍️</span><span class="tab-txt">Longitud de Mensaje</span>
                         </button>
                         {% if g10 %}
-                        <button onclick="activarPestana('pestana-emojis', this)" id="tab-pestana-emojis" role="tab" aria-selected="false" aria-controls="pestana-emojis" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
-                            😂 Emojis
+                        <button onclick="activarPestana('pestana-emojis', this)" id="tab-pestana-emojis" role="tab" aria-selected="false" aria-controls="pestana-emojis" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer" title="Emojis" aria-label="Emojis">
+                            <span class="tab-ico" aria-hidden="true">😂</span><span class="tab-txt">Emojis</span>
                         </button>
                         {% endif %}
-                        <button onclick="activarPestana('pestana-palabras', this)" id="tab-pestana-palabras" role="tab" aria-selected="false" aria-controls="pestana-palabras" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
-                            🏷️ Palabras Clave
+                        <button onclick="activarPestana('pestana-palabras', this)" id="tab-pestana-palabras" role="tab" aria-selected="false" aria-controls="pestana-palabras" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer" title="Palabras Clave" aria-label="Palabras Clave">
+                            <span class="tab-ico" aria-hidden="true">🏷️</span><span class="tab-txt">Palabras Clave</span>
                         </button>
                         {% if g6_svg %}
-                        <button onclick="activarPestana('pestana-burbujas', this)" id="tab-pestana-burbujas" role="tab" aria-selected="false" aria-controls="pestana-burbujas" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer">
-                            🔮 Mapa de Conceptos
+                        <button onclick="activarPestana('pestana-burbujas', this)" id="tab-pestana-burbujas" role="tab" aria-selected="false" aria-controls="pestana-burbujas" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer" title="Mapa de Conceptos" aria-label="Mapa de Conceptos">
+                            <span class="tab-ico" aria-hidden="true">🔮</span><span class="tab-txt">Mapa de Conceptos</span>
                         </button>
                         {% endif %}
                     </div>
 
-                    <button id="scroll-right-indicator" onclick="scrollMenu('der')" class="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-slate-50 dark:from-slate-900 via-slate-50 dark:via-slate-900/95 to-transparent z-40 flex items-center justify-end pr-2 transition-all duration-300 pointer-events-auto cursor-pointer group">
+                    <button id="scroll-right-indicator" onclick="scrollMenu('der')" class="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-slate-50 dark:from-slate-900 via-slate-50 dark:via-slate-900/95 to-transparent z-40 flex items-center justify-end pr-2 transition-all duration-300 opacity-0 pointer-events-none cursor-pointer group">
                         <span class="text-teal-700 dark:text-teal-400 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 py-1 px-2 rounded-xl shadow-md group-hover:scale-105 transition tracking-wider flex items-center gap-1 font-bold">▶</span>
                     </button>
                 </div>
@@ -330,12 +351,14 @@
                     </div>
 
                     <div id="pestana-heatmap" role="tabpanel" aria-labelledby="tab-pestana-heatmap" tabindex="0" class="tab-content hidden bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col justify-between lg:h-full lg:overflow-hidden">
-                        <div class="grafico-wrap">{{ g7 | safe }}</div>
+                        <div class="grafico-wrap ancho-min" style="--minw:640px">{{ g7 | safe }}</div>
+                        <p class="pista-desliza">↔ Desliza horizontalmente para ver todas las horas</p>
                         <button style="display:none" onclick="descargarPlotly('g-heatmap-semana', 'Heatmap_Dia_Hora')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Mapa de Calor (PNG)</button>
                     </div>
 
                     <div id="pestana-matriz" role="tabpanel" aria-labelledby="tab-pestana-matriz" tabindex="0" class="tab-content hidden bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col justify-between lg:h-full lg:overflow-hidden">
-                        <div class="grafico-wrap">{{ g3 | safe }}</div>
+                        <div class="grafico-wrap ancho-min" style="--minw:760px">{{ g3 | safe }}</div>
+                        <p class="pista-desliza">↔ Desliza horizontalmente para ver toda la matriz</p>
                         <button style="display:none" onclick="descargarPlotly('g-matriz', 'Matriz_Afinidad_Cruzada')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Matriz de Afinidad (PNG)</button>
                     </div>
 
@@ -510,15 +533,15 @@
     <script>
         function alternarTema() {
             const esOscuroAhora = document.documentElement.classList.toggle('dark');
-            localStorage.setItem('whatstats-theme', esOscuroAhora ? 'dark' : 'light');
-            document.getElementById('iconoTema').textContent = esOscuroAhora ? '🌙' : '☀️';
+            localStorage.setItem('whatsinchat-theme', esOscuroAhora ? 'dark' : 'light');
+            document.getElementById('iconoTema').textContent = esOscuroAhora ? '☀️' : '🌙';
             aplicarTemaGraficas();
         }
 
         // Las gráficas de Plotly tienen fondo transparente y colores neutros desde
         // el servidor; aquí se ajustan al modo claro/oscuro actual (texto, líneas
         // de la cuadrícula y escala de color de los mapas de calor).
-        // OJO: estas escalas deben coincidir con ESCALA_CALOR_* de whatstats/chart_style.py
+        // OJO: estas escalas deben coincidir con ESCALA_CALOR_* de WhatsInChat/chart_style.py
         const ESCALAS_CALOR = {
             oscuro: [[0, '#17303c'], [0.5, '#0d9488'], [1, '#5eead4']],
             claro:  [[0, '#f0fdfa'], [0.5, '#5eead4'], [1, '#0f766e']]
@@ -556,7 +579,7 @@
         }
         // Se espera a que Plotly haya terminado de dibujar las gráficas
         window.addEventListener('load', () => requestAnimationFrame(aplicarTemaGraficas));
-        document.getElementById('iconoTema').textContent = document.documentElement.classList.contains('dark') ? '🌙' : '☀️';
+        document.getElementById('iconoTema').textContent = document.documentElement.classList.contains('dark') ? '☀️' : '🌙';
 
         // Perfil de cada integrante, calculado en el servidor (nunca se envía
         // el texto de los mensajes, solo estos agregados ya calculados).
@@ -900,7 +923,7 @@
                 leftIndicator.classList.add('opacity-0', 'pointer-events-none');
             }
 
-            if (scrollLeft >= maxScrollable - 5) {
+            if (maxScrollable <= 1 || scrollLeft >= maxScrollable - 5) {
                 rightIndicator.classList.remove('opacity-100', 'pointer-events-auto');
                 rightIndicator.classList.add('opacity-0', 'pointer-events-none');
             } else {
@@ -912,9 +935,17 @@
         container.addEventListener('scroll', actualizarIndicadores);
         window.addEventListener('resize', actualizarIndicadores);
 
-        document.addEventListener("DOMContentLoaded", () => {
-            setTimeout(actualizarIndicadores, 300);
-        });
+        // La flecha ▶ solo debe verse si de verdad hay pestañas fuera de la vista.
+        // Se recalcula al instante cada vez que cambia el tamaño de la barra o de
+        // sus pestañas (p. ej. al plegar el ranking o al expandirse la pestaña
+        // activa), para que no aparezca un momento con datos desactualizados.
+        actualizarIndicadores();
+        if (typeof ResizeObserver !== 'undefined') {
+            const observador = new ResizeObserver(() => actualizarIndicadores());
+            observador.observe(container);
+            container.querySelectorAll('.tab-btn').forEach(b => observador.observe(b));
+        }
+        document.addEventListener("DOMContentLoaded", actualizarIndicadores);
     </script>
     <script>
         // --- Ranking de mensajes plegable (empieza cerrado: el HTML ya lo trae cerrado) ---
@@ -932,6 +963,48 @@
             // Las gráficas (Plotly) se reajustan al nuevo ancho cuando termina la animación
             [60, 340].forEach(ms => setTimeout(() => window.dispatchEvent(new Event('resize')), ms));
         }
+    </script>
+    <script>
+        // --- Subtítulos de las gráficas: se parten en varias líneas si no caben (móvil) ---
+        function envolverTexto(texto, maxChars) {
+            const lineas = [];
+            let actual = '';
+            texto.split(' ').forEach(palabra => {
+                if (actual && (actual + ' ' + palabra).length > maxChars) { lineas.push(actual); actual = palabra; }
+                else { actual = actual ? actual + ' ' + palabra : palabra; }
+            });
+            if (actual) lineas.push(actual);
+            return lineas;
+        }
+
+        function ajustarSubtitulosGraficas() {
+            if (typeof Plotly === 'undefined') return;
+            document.querySelectorAll('.grafico-wrap .plotly-graph-div').forEach(el => {
+                // En las gráficas con scroll horizontal manda el ancho visible, no el de la gráfica
+                const envoltorio = el.closest('.grafico-wrap');
+                const ancho = envoltorio ? Math.min(el.clientWidth, envoltorio.clientWidth) : el.clientWidth;
+                const sub = el.layout && el.layout.title && el.layout.title.subtitle;
+                if (!ancho || !sub || typeof sub.text !== 'string') return;
+                if (el.dataset.subOriginal === undefined) {
+                    el.dataset.subOriginal = sub.text;
+                    el.dataset.margenTOriginal = String((el.layout.margin && el.layout.margin.t) || 90);
+                }
+                const lineas = envolverTexto(el.dataset.subOriginal, Math.max(18, Math.floor((ancho - 40) / 6.4)));
+                const texto = lineas.join('<br>');
+                if (texto === sub.text) return;
+                Plotly.relayout(el, {
+                    'title.subtitle.text': texto,
+                    'margin.t': Number(el.dataset.margenTOriginal) + (lineas.length - 1) * 15,
+                });
+            });
+        }
+
+        let temporizadorSubtitulos = null;
+        window.addEventListener('resize', () => {
+            clearTimeout(temporizadorSubtitulos);
+            temporizadorSubtitulos = setTimeout(ajustarSubtitulosGraficas, 120);
+        });
+        window.addEventListener('load', () => setTimeout(ajustarSubtitulosGraficas, 150));
     </script>
 </body>
 </html>

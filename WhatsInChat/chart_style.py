@@ -75,8 +75,8 @@ def barras_horizontales(df, col_valor, col_categoria, titulo, subtitulo=None, te
     """Barras horizontales. `df` debe venir ya ordenado de menor a mayor
     (así la barra más larga queda arriba). La barra máxima se resalta en ámbar.
 
-    Con `podio=True` las tres barras más largas llevan medalla (oro, plata y
-    bronce) y su color; en el tooltip se usa `customdata` con el nombre limpio."""
+    Con `podio=True` las tres barras más largas se colorean en oro, plata y
+    bronce (sin emojis de medalla)."""
     valores = df[col_valor].tolist()
     categorias = df[col_categoria].tolist()
     if texto is None:
@@ -87,12 +87,8 @@ def barras_horizontales(df, col_valor, col_categoria, titulo, subtitulo=None, te
 
     if podio:
         n = len(categorias)
-        medallas = {n - 1: ("🥇", COLOR_PODIO[0]), n - 2: ("🥈", COLOR_PODIO[1]), n - 3: ("🥉", COLOR_PODIO[2])}
-        customdata = list(categorias)
-        hover = hover.replace("%{y}", "%{customdata}")
-        for idx, (medalla, color) in medallas.items():
+        for idx, color in {n - 1: COLOR_PODIO[0], n - 2: COLOR_PODIO[1], n - 3: COLOR_PODIO[2]}.items():
             if idx >= 0:
-                categorias[idx] = f"{medalla} {categorias[idx]}"
                 colores[idx] = color
 
     fig = go.Figure(go.Bar(

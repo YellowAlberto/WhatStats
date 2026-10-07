@@ -13,10 +13,10 @@ try:
 except ImportError:
     pass
 
-from whatstats.routes import router, manejador_errores_generico
+from WhatsInChat.routes import router, manejador_errores_generico
 
 
-app = FastAPI(title="Analizador de WhatsApp Completo")
+app = FastAPI(title="WhatsInChat")
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 

@@ -1,0 +1,211 @@
+/* Estilos de la portada (index.html). Es un CSS propio, independiente de Tailwind,
+   así que no hace falta recompilar nada al cambiarlo. Colores en variables para
+   claro/oscuro (la clase "dark" va en <html>). */
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; }
+h1, h2, h3, p, ol, ul, figure { margin: 0; }
+ol, ul { padding: 0; list-style: none; }
+button, input, summary { font: inherit; color: inherit; }
+button { cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+
+:root {
+    --ini-bg: #f8fafc;
+    --ini-txt: #0f172a;
+    --ini-suave: #475569;
+    --ini-tenue: #64748b;
+    --ini-card: rgba(255, 255, 255, .86);
+    --ini-borde: #e2e8f0;
+    --ini-campo: #f1f5f9;
+    --ini-acento: #0f766e;
+    --ini-acento-claro: #14b8a6;
+    --ini-acento-fondo: rgba(20, 184, 166, .12);
+    --ini-sombra: 0 20px 50px -20px rgba(15, 23, 42, .25);
+    --ini-aviso: #e11d48;
+}
+html.dark {
+    --ini-bg: #0f172a;
+    --ini-txt: #f1f5f9;
+    --ini-suave: #cbd5e1;
+    --ini-tenue: #94a3b8;
+    --ini-card: rgba(30, 41, 59, .86);
+    --ini-borde: #334155;
+    --ini-campo: rgba(15, 23, 42, .6);
+    --ini-acento: #2dd4bf;
+    --ini-acento-claro: #2dd4bf;
+    --ini-acento-fondo: rgba(45, 212, 191, .12);
+    --ini-sombra: 0 24px 60px -24px rgba(0, 0, 0, .7);
+    --ini-aviso: #fb7185;
+}
+
+body.ini {
+    min-height: 100vh;
+    background: var(--ini-bg);
+    color: var(--ini-txt);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.5;
+    display: flex;
+    flex-direction: column;
+}
+
+/* --- Barra superior --- */
+.ini-top {
+    display: flex; align-items: center; justify-content: space-between;
+    width: 100%; max-width: 70rem; margin: 0 auto; padding: 1rem 1.25rem;
+}
+.ini-marca { display: inline-flex; align-items: center; gap: .4rem; font-weight: 800; font-size: 1.05rem; letter-spacing: -.01em; }
+.ini-nombre em { font-style: normal; color: var(--ini-acento); }
+.ini-tema {
+    width: 2.5rem; height: 2.5rem; border-radius: 9999px; border: 1px solid var(--ini-borde);
+    background: var(--ini-card); display: inline-flex; align-items: center; justify-content: center;
+    font-size: 1.1rem; transition: transform .15s;
+}
+.ini-tema:hover { transform: scale(1.07); }
+
+/* --- Contenido --- */
+.ini-main { width: 100%; max-width: 70rem; margin: 0 auto; padding: .5rem 1.25rem 2rem; flex: 1; }
+
+.ini-hero { text-align: center; max-width: 46rem; margin: 0 auto 1.75rem; }
+.ini-hero h1 { text-wrap: balance; font-size: clamp(1.9rem, 4.2vw, 3rem); line-height: 1.1; font-weight: 900; letter-spacing: -.03em; }
+.ini-acento {
+    background: linear-gradient(100deg, #14b8a6, #38bdf8);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.ini-hero p { margin-top: .85rem; font-size: clamp(1rem, 1.6vw, 1.15rem); color: var(--ini-suave); }
+
+.ini-grid { display: grid; gap: 1.25rem; grid-template-columns: 1fr; }
+@media (min-width: 900px) { .ini-grid { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); align-items: start; } }
+
+.ini-card {
+    background: var(--ini-card); border: 1px solid var(--ini-borde); border-radius: 1.4rem;
+    padding: 1.5rem; box-shadow: var(--ini-sombra);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+}
+.ini-card h2 { font-size: 1.1rem; font-weight: 800; color: var(--ini-acento); margin-bottom: 1rem; }
+
+/* --- Zona de subida --- */
+.ini-drop {
+    position: relative; border: 2px dashed var(--ini-borde); border-radius: 1.1rem;
+    background: var(--ini-campo); padding: 1.9rem 1.25rem; text-align: center;
+    transition: border-color .2s, background-color .2s, transform .2s;
+}
+.ini-drop:hover, .ini-drop.arrastrando { border-color: var(--ini-acento-claro); background: var(--ini-acento-fondo); }
+.ini-drop.arrastrando { transform: scale(1.01); }
+.ini-drop input[type="file"] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.ini-drop.con-archivo input[type="file"] { pointer-events: none; }
+.ini-drop-icono {
+    width: 3.2rem; height: 3.2rem; margin: 0 auto .75rem; border-radius: 9999px;
+    background: var(--ini-acento-fondo); display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
+}
+.ini-drop-titulo { font-weight: 800; }
+.ini-drop-sub { margin-top: .25rem; font-size: .85rem; color: var(--ini-tenue); }
+
+.ini-archivo { display: none; align-items: center; gap: .75rem; text-align: left; }
+.ini-drop.con-archivo .ini-vacio { display: none; }
+.ini-drop.con-archivo .ini-archivo { display: flex; }
+.ini-archivo-icono {
+    flex: none; width: 2.8rem; height: 2.8rem; border-radius: .8rem; background: var(--ini-acento-claro);
+    color: #042f2e; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;
+}
+.ini-archivo-datos { min-width: 0; flex: 1; }
+.ini-archivo-nombre { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ini-archivo-meta { font-size: .8rem; color: var(--ini-tenue); }
+.ini-quitar {
+    position: relative; z-index: 2; flex: none; width: 2rem; height: 2rem; border-radius: 9999px;
+    border: 1px solid var(--ini-borde); background: var(--ini-card); line-height: 1;
+}
+.ini-quitar:hover { background: var(--ini-acento-fondo); }
+
+/* --- Opciones avanzadas --- */
+.ini-avanzadas { margin-top: 1rem; border: 1px solid var(--ini-borde); border-radius: .9rem; background: var(--ini-campo); }
+.ini-avanzadas summary { padding: .7rem 1rem; font-size: .88rem; font-weight: 700; color: var(--ini-suave); cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; }
+.ini-avanzadas summary::-webkit-details-marker { display: none; }
+.ini-avanzadas summary::after { content: "▾"; transition: transform .2s; }
+.ini-avanzadas[open] summary::after { transform: rotate(180deg); }
+.ini-avanzadas-cuerpo { padding: 0 1rem 1rem; }
+.ini-avanzadas label { display: block; font-size: .8rem; font-weight: 700; margin-bottom: .35rem; color: var(--ini-suave); }
+.ini-campo {
+    width: 100%; padding: .65rem .9rem; border-radius: .7rem; border: 1px solid var(--ini-borde);
+    background: var(--ini-bg); color: var(--ini-txt); font-size: .9rem;
+}
+.ini-campo::placeholder { color: var(--ini-tenue); opacity: .8; }
+.ini-campo:focus { outline: 2px solid var(--ini-acento-claro); outline-offset: 1px; border-color: transparent; }
+.ini-ayuda { margin-top: .4rem; font-size: .78rem; color: var(--ini-tenue); }
+
+/* --- Botones --- */
+.ini-boton {
+    display: flex; align-items: center; justify-content: center; gap: .6rem; width: 100%;
+    margin-top: 1.1rem; padding: .95rem 1rem; border: 0; border-radius: .9rem;
+    font-weight: 800; font-size: 1rem; letter-spacing: .01em; transition: transform .1s, background-color .2s, box-shadow .2s;
+}
+.ini-boton-principal { background: linear-gradient(100deg, #14b8a6, #2dd4bf); color: #042f2e; box-shadow: 0 10px 25px -10px rgba(20, 184, 166, .8); }
+.ini-boton-principal:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 14px 28px -10px rgba(20, 184, 166, .9); }
+.ini-boton-principal:active:not(:disabled) { transform: scale(.98); }
+.ini-boton-principal:disabled { background: var(--ini-borde); color: var(--ini-tenue); box-shadow: none; cursor: not-allowed; }
+.ini-boton-sec { background: transparent; color: var(--ini-acento); border: 1px solid var(--ini-acento-claro); margin-top: .7rem; text-decoration: none; padding: .75rem 1rem; font-size: .92rem; }
+.ini-boton-sec:hover { background: var(--ini-acento-fondo); }
+.ini-nota-boton { margin-top: .5rem; text-align: center; font-size: .8rem; color: var(--ini-tenue); }
+.ini-separador { display: flex; align-items: center; gap: .75rem; margin-top: 1rem; font-size: .8rem; color: var(--ini-tenue); }
+.ini-separador::before, .ini-separador::after { content: ""; flex: 1; height: 1px; background: var(--ini-borde); }
+.ini-spinner { width: 1.1rem; height: 1.1rem; border: 3px solid rgba(4, 47, 46, .3); border-top-color: #042f2e; border-radius: 9999px; animation: ini-giro .8s linear infinite; }
+@keyframes ini-giro { to { transform: rotate(360deg); } }
+.ini-carga { margin-top: .9rem; }
+.ini-carga[hidden] { display: none; }
+.ini-carga p { font-size: .8rem; color: var(--ini-tenue); text-align: center; }
+.ini-barra { margin-top: .5rem; height: .4rem; border-radius: 9999px; background: var(--ini-borde); overflow: hidden; }
+.ini-barra div { height: 100%; width: 33%; border-radius: 9999px; background: var(--ini-acento-claro); animation: ini-barra 1.1s ease-in-out infinite; }
+@keyframes ini-barra { 0% { transform: translateX(-100%); } 100% { transform: translateX(310%); } }
+
+/* --- Privacidad --- */
+.ini-privacidad {
+    display: flex; gap: .75rem; align-items: flex-start; margin-top: 1.25rem; padding: .85rem 1rem;
+    border-radius: .9rem; background: var(--ini-acento-fondo); border: 1px solid rgba(20, 184, 166, .35);
+    font-size: .84rem; color: var(--ini-suave);
+}
+.ini-privacidad strong { color: var(--ini-txt); }
+.ini-privacidad .ini-candado { font-size: 1.2rem; line-height: 1.3; }
+
+/* --- Guía de exportación --- */
+.ini-selector { display: grid; grid-template-columns: 1fr 1fr; gap: .25rem; padding: .25rem; border-radius: .9rem; background: var(--ini-campo); border: 1px solid var(--ini-borde); margin-bottom: 1rem; }
+.ini-selector button { border: 0; background: transparent; padding: .55rem .5rem; border-radius: .7rem; font-weight: 700; font-size: .9rem; color: var(--ini-tenue); transition: background-color .15s, color .15s; }
+.ini-selector button[aria-selected="true"] { background: var(--ini-card); color: var(--ini-acento); box-shadow: 0 2px 8px -2px rgba(0, 0, 0, .25); }
+.ini-pasos { counter-reset: paso; display: flex; flex-direction: column; gap: .6rem; }
+.ini-pasos[hidden] { display: none; }
+.ini-pasos li { counter-increment: paso; display: flex; gap: .75rem; align-items: flex-start; font-size: .9rem; color: var(--ini-suave); }
+.ini-pasos li::before {
+    content: counter(paso); flex: none; width: 1.55rem; height: 1.55rem; border-radius: 9999px;
+    background: var(--ini-acento-fondo); color: var(--ini-acento); font-weight: 800; font-size: .8rem;
+    display: flex; align-items: center; justify-content: center; margin-top: .05rem;
+}
+.ini-pasos b { color: var(--ini-txt); }
+.ini-pasos .ini-clave { color: var(--ini-aviso); font-weight: 800; }
+.ini-guia-nota { margin-top: 1rem; font-size: .8rem; color: var(--ini-tenue); }
+
+/* --- Qué obtienes --- */
+.ini-funciones { display: grid; grid-template-columns: repeat(2, 1fr); gap: .75rem; margin-top: 1.5rem; }
+@media (min-width: 700px) { .ini-funciones { grid-template-columns: repeat(5, 1fr); } }
+.ini-funcion { background: var(--ini-card); border: 1px solid var(--ini-borde); border-radius: 1rem; padding: .9rem; text-align: center; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.ini-funcion:last-child:nth-child(odd) { grid-column: 1 / -1; }
+@media (min-width: 700px) { .ini-funcion:last-child:nth-child(odd) { grid-column: auto; } }
+.ini-funcion span { display: block; font-size: 1.5rem; margin-bottom: .25rem; }
+.ini-funcion b { display: block; font-size: .88rem; }
+.ini-funcion small { display: block; margin-top: .15rem; font-size: .75rem; color: var(--ini-tenue); line-height: 1.35; }
+
+.ini-pie { text-align: center; padding: 1.25rem; font-size: .8rem; color: var(--ini-tenue); }
+
+:focus-visible { outline: 2px solid var(--ini-acento-claro); outline-offset: 2px; }
+.ini-solo-lectores { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* --- Entrada suave --- */
+@keyframes ini-entra { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+.ini-hero, .ini-card, .ini-funcion { animation: ini-entra .55s ease both; }
+.ini-subida { animation-delay: .08s; }
+.ini-guia { animation-delay: .16s; }
+.ini-funcion:nth-child(2) { animation-delay: .22s; } .ini-funcion:nth-child(3) { animation-delay: .26s; }
+.ini-funcion:nth-child(4) { animation-delay: .30s; } .ini-funcion:nth-child(5) { animation-delay: .34s; }
+@media (prefers-reduced-motion: reduce) {
+    .ini-hero, .ini-card, .ini-funcion, .ini-spinner, .ini-barra div { animation: none; }
+    .ini-drop, .ini-boton, .ini-tema { transition: none; }
+}

@@ -1,4 +1,4 @@
-"""Paquete con la lógica de análisis de WhatStats, separada del punto de
+"""Paquete con la lógica de análisis de WhatsInChat, separada del punto de
 entrada de FastAPI (`main.py`) para que el proyecto sea más fácil de leer y
 mantener.
 

@@ -3,6 +3,7 @@ manejador de errores global de la aplicación."""
 
 import re
 import gc
+import io
 import json
 import base64
 from collections import Counter
@@ -23,6 +24,7 @@ from .zip_utils import es_zip, extraer_txt_de_zip, ErrorZip
 from .chat_name import nombre_chat_desde_archivo
 from .bubble_chart import generar_mapas_burbujas
 from .perfiles import calcular_perfiles, CATALOGO_PERFILES
+from .demo_chat import generar_chat_demo
 from .pdf_charts import grafico_barh_mpl, grafico_barv_mpl, grafico_linea_mpl, grafico_heatmap_mpl
 from .pdf_report import generar_informe_pdf
 from .pdf_cache import CACHE_DATOS_PDF, _guardar_datos_pdf_en_cache
@@ -56,6 +58,13 @@ async def manejador_errores_generico(request: Request, exc: Exception):
 @router.get("/", response_class=HTMLResponse)
 async def inicio(request: Request):
     return templates.TemplateResponse(name="index.html", context={}, request=request)
+
+
+@router.get("/ejemplo", response_class=HTMLResponse)
+def ejemplo(request: Request):
+    """Análisis de un chat totalmente ficticio, para ver cómo funciona sin subir nada."""
+    archivo = UploadFile(file=io.BytesIO(generar_chat_demo()), filename="Chat de WhatsApp con Los Cracks (ejemplo).txt")
+    return analizar_chat(request, archivo, None)
 
 
 @router.post("/analizar", response_class=HTMLResponse)
@@ -179,7 +188,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
         subtitulo='Por cada miembro (fila), qué % de sus respuestas rápidas (menos de 15 min) van dirigidas a cada otro miembro (columna)',
         texto=texto_celdas,
         hover="<b>%{y}</b> responde a <b>%{x}</b><br>%{z:.1f}% de sus respuestas rápidas<extra></extra>",
-        margen=dict(t=90, b=20, l=20, r=20), tickangle_x=-45,
+        margen=dict(t=90, b=20, l=20, r=20), tickangle_x=-45, dtick_x=1,
     )
     g3 = a_html(fig3, 'g-matriz')
     del fig3
