@@ -22,6 +22,7 @@ from .chart_style import (
 from .zip_utils import es_zip, extraer_txt_de_zip, ErrorZip
 from .chat_name import nombre_chat_desde_archivo
 from .bubble_chart import generar_mapas_burbujas
+from .perfiles import calcular_perfiles, CATALOGO_PERFILES
 from .pdf_charts import grafico_barh_mpl, grafico_barv_mpl, grafico_linea_mpl, grafico_heatmap_mpl
 from .pdf_report import generar_informe_pdf
 from .pdf_cache import CACHE_DATOS_PDF, _guardar_datos_pdf_en_cache
@@ -443,6 +444,13 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
     multimedia_todos_usuarios = df[df['Es_Multimedia']]['Autor'].value_counts()
     eliminados_todos_usuarios = df[df['Es_Eliminado']]['Autor'].value_counts()
 
+    # Etiqueta de "estilo/mood" de cada persona (se calcula en el servidor; si
+    # algo fallara, el resto de la página funciona igual sin etiquetas)
+    try:
+        etiquetas_usuario = calcular_perfiles(df_solo_texto, df)
+    except Exception:
+        etiquetas_usuario = {}
+
     perfiles_usuario = {}
     for autor in total_mensajes_usuario.index:
         mensajes_autor = int(total_mensajes_usuario.get(autor, 0))
@@ -456,6 +464,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
             "emoji_favorito": emoji_favorito_por_usuario.get(autor, "—"),
             "tiempo_respuesta_medio": round(float(tiempos_respuesta.get(autor)), 1) if autor in tiempos_respuesta.index and pd.notna(tiempos_respuesta.get(autor)) else None,
             "pct_fantasma": round(float(porcentaje_fantasmas.get(autor, 0)), 1),
+            "etiqueta": etiquetas_usuario.get(autor),
         }
 
     # =========================================================================
@@ -497,6 +506,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
         name="resultados.html",
         context={
             "nombre_grupo": nombre_grupo,
+            "catalogo_perfiles": CATALOGO_PERFILES,
             "total_mensajes": len(df),
             "total_multimedia": total_multimedia,
             "total_eliminados": total_eliminados,

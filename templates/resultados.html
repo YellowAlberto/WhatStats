@@ -18,6 +18,7 @@
     <title>WhatStats · {{ nombre_grupo or "Panel Estadístico Completo" }}</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
     <link rel="stylesheet" href="/static/css/tailwind.css">
+    <link rel="stylesheet" href="/static/css/fondo.css">
     <!-- OJO: "plotly-latest.min.js" NO se actualiza desde hace años (alias
          obsoleto de Plotly); hay que fijar siempre una versión concreta. -->
     <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
@@ -113,7 +114,11 @@
         /* Título con el nombre del grupo: se adapta al ancho disponible y, si el
            nombre es muy largo, se recorta a 2 líneas con "…" (nombre completo al
            pasar el ratón). Va en CSS propio para no depender de recompilar Tailwind. */
-        .titulo-bloque { flex: 1 1 0; min-width: 0; margin-right: 0.75rem; }
+        .titulo-bloque { flex: 1 1 0; min-width: 0; margin-right: 0.75rem; display: flex; flex-direction: column; gap: .2rem; }
+        .subtitulo-mensajes { margin: 0; font-size: .875rem; color: #64748b; letter-spacing: .01em; }
+        .subtitulo-mensajes strong { color: #0f766e; font-weight: 800; font-variant-numeric: tabular-nums; }
+        html.dark .subtitulo-mensajes { color: #94a3b8; }
+        html.dark .subtitulo-mensajes strong { color: #2dd4bf; }
         .titulo-grupo {
             min-width: 0;
             font-size: clamp(1.25rem, 2.2vw + 0.6rem, 1.875rem);
@@ -125,16 +130,110 @@
             line-clamp: 2;
             overflow-wrap: anywhere;
         }
-        .pill-mensajes { flex-shrink: 0; white-space: nowrap; }
+    </style>
+    <style>
+        /* Ranking de mensajes plegable. En pantallas grandes, al cerrarla queda
+           una barra estrecha a la derecha y las gráficas ocupan todo el resto;
+           al abrirla se vuelve al reparto 2/3 + 1/3. Va en CSS propio para no
+           depender de recompilar Tailwind. */
+        .btn-tabla {
+            display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
+            border: 1px solid #cbd5e1; background: transparent; color: #475569;
+            border-radius: .6rem; padding: .25rem .6rem; font-size: .8rem; font-weight: 600;
+            cursor: pointer; line-height: 1.2; transition: background-color .15s, color .15s;
+        }
+        .btn-tabla:hover { background: rgba(20,184,166,.12); color: #0f766e; }
+        .btn-tabla:focus-visible { outline: 2px solid #14b8a6; outline-offset: 2px; }
+        html.dark .btn-tabla { border-color: #475569; color: #cbd5e1; }
+        html.dark .btn-tabla:hover { background: rgba(20,184,166,.18); color: #5eead4; }
+        .tabla-etiqueta { display: none; }
+        .tabla-flecha::before { content: "▴"; }
+        #panelTabla.cerrada .tabla-flecha::before { content: "▾"; }
+        #panelTabla.cerrada #contenidoTabla,
+        #panelTabla.cerrada #tituloTabla { display: none; }
+        #panelTabla.cerrada .tabla-etiqueta { display: inline; }
+        #panelTabla.cerrada { padding-top: .75rem; padding-bottom: .75rem; }
+        #panelTabla.cerrada .cabecera-tabla { margin-bottom: 0; }
+        @media (min-width: 1024px) {
+            #gridPrincipal {
+                grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+                transition: grid-template-columns .3s ease;
+            }
+            #gridPrincipal.tabla-cerrada { grid-template-columns: minmax(0, 1fr) 3.25rem; }
+            .tabla-flecha::before { content: "›"; font-size: 1.1rem; }
+            #panelTabla.cerrada .tabla-flecha::before { content: "‹"; font-size: 1.1rem; }
+            #panelTabla.cerrada { padding: .75rem .25rem; align-items: center; }
+            #panelTabla.cerrada .cabecera-tabla { flex: 1; width: 100%; }
+            #panelTabla.cerrada .btn-tabla {
+                flex-direction: column; justify-content: flex-start; width: 100%; height: 100%;
+                border: 0; padding: .25rem 0; gap: .75rem;
+            }
+            #panelTabla.cerrada .tabla-etiqueta { writing-mode: vertical-rl; letter-spacing: .04em; }
+        }
+        @media (prefers-reduced-motion: reduce) { #gridPrincipal { transition: none; } }
+
+        /* Etiqueta de estilo/mood dentro de la ventana de cada miembro */
+        .perfil-etiqueta {
+            display: flex; gap: .85rem; align-items: flex-start;
+            margin-bottom: 1rem; padding: .85rem 1rem; border-radius: .9rem;
+            background: rgba(20,184,166,.10); border: 1px solid rgba(20,184,166,.35);
+        }
+        .perfil-etiqueta[hidden] { display: none; }
+        .pe-emoji { font-size: 2.1rem; line-height: 1; }
+        .pe-texto { min-width: 0; }
+        .pe-kicker { margin: 0; font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; color: #64748b; font-weight: 700; }
+        .pe-titulo { margin: .1rem 0 .2rem; font-size: 1.15rem; font-weight: 800; color: #0f766e; }
+        .pe-explicacion { margin: 0; font-size: .82rem; line-height: 1.35; color: #475569; }
+        .pe-sec { margin: .4rem 0 0; font-size: .75rem; color: #64748b; }
+        html.dark .pe-kicker { color: #94a3b8; }
+        html.dark .pe-titulo { color: #2dd4bf; }
+        html.dark .pe-explicacion { color: #cbd5e1; }
+        html.dark .pe-sec { color: #94a3b8; }
+        /* Botón de información y ventana con todos los perfiles */
+        .perfil-etiqueta { position: relative; }
+        .btn-info-perfiles {
+            position: absolute; top: .5rem; right: .5rem; width: 1.5rem; height: 1.5rem;
+            border-radius: 9999px; border: 1px solid rgba(20,184,166,.6); background: transparent;
+            color: #0f766e; font: italic 700 .85rem Georgia, serif; line-height: 1; cursor: pointer;
+            display: inline-flex; align-items: center; justify-content: center; transition: background-color .15s;
+        }
+        .btn-info-perfiles:hover { background: rgba(20,184,166,.2); }
+        .btn-info-perfiles:focus-visible, .info-cerrar:focus-visible { outline: 2px solid #14b8a6; outline-offset: 2px; }
+        html.dark .btn-info-perfiles { color: #5eead4; }
+        .pe-texto { padding-right: 1.6rem; }
+        .info-overlay {
+            position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center;
+            padding: 1rem; background: rgba(0,0,0,.7);
+        }
+        .info-overlay[hidden] { display: none; }
+        .info-panel {
+            position: relative; width: 100%; max-width: 34rem; max-height: calc(100vh - 2rem); overflow-y: auto;
+            background: #fff; color: #0f172a; border: 1px solid #e2e8f0; border-radius: 1rem;
+            padding: 1.5rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,.5);
+        }
+        html.dark .info-panel { background: #1e293b; color: #f1f5f9; border-color: #334155; }
+        .info-cerrar { position: absolute; top: .9rem; right: 1rem; background: none; border: 0; font-size: 1.2rem; cursor: pointer; color: #64748b; line-height: 1; }
+        html.dark .info-cerrar { color: #94a3b8; }
+        .info-titulo { margin: 0 2rem .6rem 0; font-size: 1.2rem; font-weight: 800; color: #0f766e; }
+        html.dark .info-titulo { color: #2dd4bf; }
+        .info-intro { margin: 0 0 1rem; font-size: .85rem; line-height: 1.45; color: #475569; }
+        html.dark .info-intro { color: #cbd5e1; }
+        .info-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .6rem; }
+        .info-item { display: flex; gap: .75rem; align-items: flex-start; padding: .65rem .8rem; border-radius: .75rem; background: #f1f5f9; }
+        html.dark .info-item { background: rgba(15,23,42,.6); }
+        .info-emoji { font-size: 1.6rem; line-height: 1.1; }
+        .info-nombre { margin: 0; font-weight: 700; font-size: .95rem; }
+        .info-criterio { margin: .15rem 0 0; font-size: .8rem; line-height: 1.4; color: #475569; }
+        html.dark .info-criterio { color: #cbd5e1; }
     </style>
 </head>
 <body class="bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 min-h-screen lg:h-screen lg:overflow-hidden p-3 md:p-5 flex flex-col">
     <main class="max-w-7xl mx-auto w-full flex flex-col lg:flex-1 lg:min-h-0">
 
         <div class="flex justify-between items-center mb-3 shrink-0">
-            <div class="flex items-center gap-3 titulo-bloque">
-                <h1 class="titulo-grupo font-extrabold text-teal-700 dark:text-teal-400 tracking-tight" title="{{ nombre_grupo or '' }}">📊 {{ nombre_grupo or "La radiografía de tu grupo" }}</h1>
-                <span class="pill-mensajes inline-flex items-center gap-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full px-3 py-1 text-xs font-semibold text-slate-700 dark:text-slate-300">💬 <span class="font-black text-slate-900 dark:text-white">{{ "{:,}".format(total_mensajes) }}</span> mensajes analizados</span>
+            <div class="titulo-bloque">
+                <h1 class="titulo-grupo font-extrabold text-teal-700 dark:text-teal-400 tracking-tight" title="{{ nombre_grupo or '' }}">{{ nombre_grupo or "La radiografía de tu grupo" }}</h1>
+                <p class="subtitulo-mensajes"><strong>{{ "{:,}".format(total_mensajes) }}</strong> mensajes analizados</p>
             </div>
             <div class="flex items-center gap-2">
                 <button id="btnTema" onclick="alternarTema()" aria-label="Cambiar entre modo claro y oscuro" class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full w-9 h-9 flex items-center justify-center text-base shadow hover:scale-105 transition cursor-pointer">
@@ -158,9 +257,9 @@
         {% endif %}
         #}
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
+        <div id="gridPrincipal" class="tabla-cerrada grid grid-cols-1 gap-5 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
 
-            <div class="lg:col-span-2 flex flex-col space-y-3 lg:min-h-0 lg:overflow-hidden">
+            <div class="flex flex-col space-y-3 lg:min-h-0 lg:overflow-hidden">
 
                 <div class="relative bg-slate-50 dark:bg-slate-900 rounded-xl p-1 border border-slate-200 dark:border-slate-800 overflow-hidden shrink-0" >
                     <button id="scroll-left-indicator" onclick="scrollMenu('izq')" class="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-slate-50 dark:from-slate-900 via-slate-50 dark:via-slate-900/90 to-transparent z-40 flex items-center justify-start pl-2 opacity-0 transition-all duration-300 pointer-events-none cursor-pointer group">
@@ -296,9 +395,15 @@
                 </div>
             </div>
 
-            <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl lg:h-full flex flex-col lg:overflow-hidden lg:min-h-0">
-                <h3 class="text-base font-bold mb-2 text-slate-800 dark:text-slate-200 flex items-center gap-2 shrink-0">🏆 Tabla Completa de Posiciones</h3>
-                <div class="overflow-x-auto max-h-[400px] lg:max-h-none overflow-y-auto lg:flex-1 lg:min-h-0 scrollbar-thin pr-3">
+            <div id="panelTabla" class="cerrada bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl lg:h-full flex flex-col lg:overflow-hidden lg:min-h-0">
+                <div class="cabecera-tabla flex items-center justify-between gap-2 mb-2 shrink-0">
+                    <h3 id="tituloTabla" class="text-base font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">🏆 Ranking de mensajes por miembro</h3>
+                    <button id="btnTabla" type="button" onclick="alternarTabla()" aria-expanded="false" aria-controls="contenidoTabla" aria-label="Mostrar el ranking de mensajes" title="Mostrar el ranking" class="btn-tabla">
+                        <span class="tabla-flecha" aria-hidden="true"></span>
+                        <span class="tabla-etiqueta" aria-hidden="true">🏆 Ranking de mensajes</span>
+                    </button>
+                </div>
+                <div id="contenidoTabla" class="overflow-x-auto max-h-[400px] lg:max-h-none overflow-y-auto lg:flex-1 lg:min-h-0 scrollbar-thin pr-3">
                     <table class="w-full text-left">
                         <thead class="sticky top-0 bg-white dark:bg-slate-800 z-10">
                             <tr class="border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 text-sm">
@@ -321,11 +426,46 @@
         </div>
     </main>
 
+    <!-- Información: todos los perfiles y por qué se asignan -->
+    <div id="modalInfoPerfiles" class="info-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="infoPerfilesTitulo" onclick="if (event.target === this) cerrarInfoPerfiles()">
+        <div class="info-panel">
+            <button type="button" id="btnCerrarInfoPerfiles" class="info-cerrar" onclick="cerrarInfoPerfiles()" aria-label="Cerrar información de los perfiles">✕</button>
+            <h3 id="infoPerfilesTitulo" class="info-titulo">¿Cómo se asignan los perfiles?</h3>
+            <p class="info-intro">
+                No es un análisis de sentimiento ni una evaluación de nadie: es un juego que mira <strong>cómo escribe</strong> cada persona.
+                Se calcula en el servidor con patrones de texto y se compara con la <strong>media del grupo</strong>, así que el mismo
+                comportamiento puede dar etiquetas distintas en grupos distintos. Cada persona recibe el rasgo en el que más
+                destaca (y, si hay otro, aparece como "También"). Hacen falta al menos 50 mensajes de texto para tener perfil.
+            </p>
+            <ul class="info-lista">
+                {% for perfil in catalogo_perfiles %}
+                <li class="info-item">
+                    <span class="info-emoji" aria-hidden="true">{{ perfil.emoji }}</span>
+                    <div>
+                        <p class="info-nombre">{{ perfil.titulo }}</p>
+                        <p class="info-criterio">{{ perfil.criterio }}</p>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
     <!-- Panel de estadísticas individuales: oculto hasta que se clica un miembro -->
     <div id="modalPerfilUsuario" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="perfilNombre" onclick="if (event.target === this) cerrarPerfilUsuario()">
         <div class="modal-panel bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl w-full max-w-md p-6 relative">
             <button id="btnCerrarPerfil" onclick="cerrarPerfilUsuario()" aria-label="Cerrar panel de estadísticas individuales" class="absolute top-4 right-4 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-white text-xl leading-none cursor-pointer">✕</button>
-            <h3 id="perfilNombre" class="text-xl font-extrabold text-teal-700 dark:text-teal-400 mb-5 pr-8"></h3>
+            <h3 id="perfilNombre" class="text-xl font-extrabold text-teal-700 dark:text-teal-400 mb-4 pr-8"></h3>
+            <div id="perfilEtiqueta" class="perfil-etiqueta" hidden>
+                <button type="button" id="btnInfoPerfiles" class="btn-info-perfiles" onclick="abrirInfoPerfiles()" aria-haspopup="dialog" aria-label="Qué significan los perfiles y cómo se calculan" title="¿Cómo se calcula?">i</button>
+                <span id="perfilEtiquetaEmoji" class="pe-emoji" aria-hidden="true"></span>
+                <div class="pe-texto">
+                    <p class="pe-kicker">Su estilo en el grupo</p>
+                    <p id="perfilEtiquetaTitulo" class="pe-titulo"></p>
+                    <p id="perfilEtiquetaExplicacion" class="pe-explicacion"></p>
+                    <p id="perfilEtiquetaSec" class="pe-sec" hidden></p>
+                </div>
+            </div>
             <div class="grid grid-cols-2 gap-3 text-sm">
                 <div class="bg-slate-50 dark:bg-slate-900/60 rounded-xl p-3">
                     <p class="text-slate-600 dark:text-slate-400 text-xs uppercase tracking-wide">Mensajes</p>
@@ -439,6 +579,25 @@
             document.getElementById('perfilEliminados').textContent = perfil.eliminados.toLocaleString('es-ES');
             document.getElementById('perfilFantasma').textContent = perfil.pct_fantasma + '%';
 
+            // Etiqueta de estilo (si se pudo calcular)
+            const caja = document.getElementById('perfilEtiqueta');
+            const et = perfil.etiqueta;
+            if (et) {
+                document.getElementById('perfilEtiquetaEmoji').textContent = et.emoji;
+                document.getElementById('perfilEtiquetaTitulo').textContent = et.titulo;
+                document.getElementById('perfilEtiquetaExplicacion').textContent = et.explicacion;
+                const sec = document.getElementById('perfilEtiquetaSec');
+                if (et.secundario) {
+                    sec.textContent = 'También: ' + et.secundario.emoji + ' ' + et.secundario.titulo;
+                    sec.hidden = false;
+                } else {
+                    sec.hidden = true;
+                }
+                caja.hidden = false;
+            } else {
+                caja.hidden = true;
+            }
+
             // Recordamos qué elemento tenía el foco para devolvérselo al cerrar.
             elementoAnteriorAlFoco = document.activeElement;
 
@@ -461,8 +620,25 @@
             }
         }
 
+        // --- Ventana de información de los perfiles ---
+        let focoAntesDeInfo = null;
+        function abrirInfoPerfiles() {
+            focoAntesDeInfo = document.activeElement;
+            document.getElementById('modalInfoPerfiles').hidden = false;
+            document.getElementById('btnCerrarInfoPerfiles').focus();
+        }
+        function cerrarInfoPerfiles() {
+            const info = document.getElementById('modalInfoPerfiles');
+            if (info.hidden) return false;
+            info.hidden = true;
+            if (focoAntesDeInfo) { focoAntesDeInfo.focus(); focoAntesDeInfo = null; }
+            return true;
+        }
+
         document.addEventListener('keydown', (evento) => {
             if (evento.key === 'Escape') {
+                // Si la ventana de información está abierta, Escape solo cierra esa
+                if (cerrarInfoPerfiles()) return;
                 cerrarPerfilUsuario();
                 if (typeof cerrarBurbujas === 'function') cerrarBurbujas();
             }
@@ -500,7 +676,9 @@
 
         function irAPestana(indice) {
             if (tabButtons.length === 0) return;
-            const nuevoIndice = (indice + tabButtons.length) % tabButtons.length;
+            // Con tope: no se salta de la primera gráfica a la última ni al revés
+            const nuevoIndice = Math.max(0, Math.min(indice, tabButtons.length - 1));
+            if (nuevoIndice === currentTabIndex) return;
             tabButtons[nuevoIndice].click();
             tabButtons[nuevoIndice].scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
         }
@@ -737,6 +915,23 @@
         document.addEventListener("DOMContentLoaded", () => {
             setTimeout(actualizarIndicadores, 300);
         });
+    </script>
+    <script>
+        // --- Ranking de mensajes plegable (empieza cerrado: el HTML ya lo trae cerrado) ---
+        function alternarTabla(forzarCerrada) {
+            const panel = document.getElementById('panelTabla');
+            const grid = document.getElementById('gridPrincipal');
+            const boton = document.getElementById('btnTabla');
+            const cerrar = (typeof forzarCerrada === 'boolean') ? forzarCerrada : !panel.classList.contains('cerrada');
+            panel.classList.toggle('cerrada', cerrar);
+            grid.classList.toggle('tabla-cerrada', cerrar);
+            boton.setAttribute('aria-expanded', String(!cerrar));
+            const texto = cerrar ? 'Mostrar el ranking de mensajes' : 'Ocultar el ranking de mensajes';
+            boton.setAttribute('aria-label', texto);
+            boton.title = cerrar ? 'Mostrar el ranking' : 'Ocultar el ranking';
+            // Las gráficas (Plotly) se reajustan al nuevo ancho cuando termina la animación
+            [60, 340].forEach(ms => setTimeout(() => window.dispatchEvent(new Event('resize')), ms));
+        }
     </script>
 </body>
 </html>
