@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="WhatsInChat">
+  <rect width="64" height="64" rx="15" fill="#0f766e"/>
+  <path d="M14 13h36a7 7 0 0 1 7 7v19a7 7 0 0 1-7 7H32l-11 9v-9h-7a7 7 0 0 1-7-7V20a7 7 0 0 1 7-7z" transform="translate(-3.5 0)" fill="#fff"/>
+  <rect x="17" y="30" width="6" height="9" rx="1.6" fill="#0f766e"/>
+  <rect x="27" y="22" width="6" height="17" rx="1.6" fill="#14b8a6"/>
+  <rect x="37" y="26" width="6" height="13" rx="1.6" fill="#0f766e"/>
+</svg>
