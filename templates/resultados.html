@@ -16,7 +16,9 @@
     <meta name="description" content="Panel de estadísticas de tu chat de WhatsApp: ranking de miembros, actividad por hora, tiempos de respuesta, emojis y más.">
     <meta name="robots" content="noindex">
     <title>WhatsInChat · {{ nombre_grupo or "Panel Estadístico Completo" }}</title>
-    <link rel="icon" type="image/svg+xml" href="/static/icono.svg">
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=2">
+    <link rel="stylesheet" href="/static/css/iconos.css">
+    <script>function pintarIconoTema(oscuro){var e=document.getElementById('iconoTema');if(e)e.innerHTML='<svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-'+(oscuro?'sol':'luna')+'"/></svg>';}function svgIco(n){return '<svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-'+String(n).replace(/[^a-z]/g,'')+'"/></svg>';}</script>
     <link rel="stylesheet" href="/static/css/tailwind.css">
     <link rel="stylesheet" href="/static/css/fondo.css">
     <!-- OJO: "plotly-latest.min.js" NO se actualiza desde hace años (alias
@@ -187,7 +189,7 @@
             background: rgba(20,184,166,.10); border: 1px solid rgba(20,184,166,.35);
         }
         .perfil-etiqueta[hidden] { display: none; }
-        .pe-emoji { font-size: 2.1rem; line-height: 1; }
+        .pe-emoji { font-size: 2.1rem; line-height: 1; color: #14b8a6; }
         .pe-texto { min-width: 0; }
         .pe-kicker { margin: 0; font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; color: #64748b; font-weight: 700; }
         .pe-titulo { margin: .1rem 0 .2rem; font-size: 1.15rem; font-weight: 800; color: #0f766e; }
@@ -214,6 +216,34 @@
             padding: 1rem; background: rgba(0,0,0,.7);
         }
         .info-overlay[hidden] { display: none; }
+
+        /* --- Tarjeta para compartir --- */
+        .btn-compartir { display: inline-flex; align-items: center; gap: .4rem; cursor: pointer; }
+        .btn-compartir .txt { display: none; }
+        @media (min-width: 640px) { .btn-compartir .txt { display: inline; } }
+        .cmp-panel { max-width: 30rem; }
+        .cmp-estado { margin: 1rem 0; font-size: .9rem; color: #64748b; }
+        html.dark .cmp-estado { color: #94a3b8; }
+        .cmp-estado[hidden], #cmpContenido[hidden] { display: none; }
+        .cmp-escenario { position: relative; margin: .4rem 0 .6rem; border-radius: .8rem; overflow: hidden; background: #0b1220; touch-action: pan-y; user-select: none; }
+        .cmp-escenario img { display: block; width: 100%; height: auto; max-height: 60vh; object-fit: contain; margin: 0 auto; }
+        .cmp-flecha { position: absolute; top: 50%; transform: translateY(-50%); width: 2.4rem; height: 2.4rem; border-radius: 50%; border: 0; background: rgba(2,6,23,.62); color: #fff; font-size: 1.6rem; line-height: 1; cursor: pointer; display: grid; place-items: center; padding-bottom: .15rem; }
+        .cmp-flecha:hover:not(:disabled) { background: rgba(20,184,166,.9); color: #04201d; }
+        .cmp-flecha:disabled { opacity: .25; cursor: default; }
+        .cmp-flecha.izq { left: .5rem; } .cmp-flecha.der { right: .5rem; }
+        .cmp-puntos { display: flex; justify-content: center; gap: .45rem; margin-bottom: .9rem; }
+        .cmp-puntos button { width: .6rem; height: .6rem; border-radius: 50%; border: 0; padding: 0; background: #cbd5e1; cursor: pointer; }
+        html.dark .cmp-puntos button { background: #475569; }
+        .cmp-puntos button[aria-current="true"] { background: #14b8a6; transform: scale(1.3); }
+        .cmp-acciones { display: flex; gap: .6rem; flex-wrap: wrap; }
+        .cmp-boton { flex: 1 1 10rem; display: inline-flex; align-items: center; justify-content: center; gap: .45rem; padding: .7rem 1rem; border-radius: .8rem; font-weight: 800; font-size: .9rem; border: 1px solid #14b8a6; cursor: pointer; text-decoration: none; background: #14b8a6; color: #04201d; }
+        .cmp-boton:hover { background: #2dd4bf; }
+        .cmp-boton.sec { background: transparent; color: #0f766e; }
+        html.dark .cmp-boton.sec { color: #5eead4; }
+        .cmp-boton.sec:hover { background: rgba(20,184,166,.12); }
+        .cmp-boton[hidden] { display: none; }
+        .cmp-nota { margin: .8rem 0 0; font-size: .78rem; color: #64748b; }
+        html.dark .cmp-nota { color: #94a3b8; }
         .info-panel {
             position: relative; width: 100%; max-width: 34rem; max-height: calc(100vh - 2rem); overflow-y: auto;
             background: #fff; color: #0f172a; border: 1px solid #e2e8f0; border-radius: 1rem;
@@ -229,7 +259,7 @@
         .info-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .6rem; }
         .info-item { display: flex; gap: .75rem; align-items: flex-start; padding: .65rem .8rem; border-radius: .75rem; background: #f1f5f9; }
         html.dark .info-item { background: rgba(15,23,42,.6); }
-        .info-emoji { font-size: 1.6rem; line-height: 1.1; }
+        .info-emoji { font-size: 1.6rem; line-height: 1.1; color: #14b8a6; }
         .info-nombre { margin: 0; font-weight: 700; font-size: .95rem; }
         .info-criterio { margin: .15rem 0 0; font-size: .8rem; line-height: 1.4; color: #475569; }
         html.dark .info-criterio { color: #cbd5e1; }
@@ -258,8 +288,11 @@
             </div>
             <div class="flex items-center gap-2">
                 <button id="btnTema" onclick="alternarTema()" aria-label="Cambiar entre modo claro y oscuro" class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full w-9 h-9 flex items-center justify-center text-base shadow hover:scale-105 transition cursor-pointer">
-                    <span id="iconoTema" aria-hidden="true">☀️</span>
+                    <span id="iconoTema" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-sol"/></svg></span>
                 </button>
+                {% if resumen_compartir_json != 'null' %}
+                <button type="button" id="btnCompartir" onclick="abrirCompartir()" class="btn-compartir bg-white dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-sm px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 transition font-medium" aria-label="Crear imagen para compartir"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-compartir"/></svg><span class="txt">Compartir resumen</span></button>
+                {% endif %}
                 <a href="/" onclick="return confirm('¿Seguro que quieres salir? Perderás este panel de estadísticas y tendrás que volver a subir el chat para verlo de nuevo.');" class="bg-white dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-sm px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 transition font-medium">⬅ Analizar otro chat</a>
             </div>
         </div>
@@ -270,7 +303,7 @@
         {% if pdf_token %}
         <button type="button" id="btnDescargarPdf" onclick="descargarInformePDF('{{ pdf_token }}')"
            class="mb-8 w-full flex items-center justify-center gap-3 bg-gradient-to-r from-teal-500 to-teal-400 hover:from-teal-400 hover:to-teal-300 text-slate-950 font-black py-4 px-6 rounded-2xl transition shadow-lg tracking-wide cursor-pointer text-sm disabled:opacity-60 disabled:cursor-wait">
-            📄 Generar y Descargar Informe PDF Completo (con explicaciones)
+            <svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-documento"/></svg> Generar y Descargar Informe PDF Completo (con explicaciones)
         </button>
         <p id="pdfHint" class="hidden text-[11px] text-slate-600 text-center -mt-6 mb-8 dark:text-slate-400">
             ⏳ Generando el informe (gráficas)… puede tardar unos segundos.
@@ -289,46 +322,46 @@
 
                     <div id="tabs-container" role="tablist" aria-label="Gráficas disponibles" class="flex overflow-x-auto scrollbar-none gap-2 pb-px scroll-smooth px-2">
                         <button onclick="activarPestana('pestana-ranking', this)" id="tab-pestana-ranking" role="tab" aria-selected="true" aria-controls="pestana-ranking" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-teal-600 dark:border-teal-400 text-teal-700 dark:text-teal-400 whitespace-nowrap transition cursor-pointer" title="Miembros Activos" aria-label="Miembros Activos">
-                            <span class="tab-ico" aria-hidden="true">📊</span><span class="tab-txt">Miembros Activos</span>
+                            <span class="tab-ico" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-barras"/></svg></span><span class="tab-txt">Miembros Activos</span>
                         </button>
                         <button onclick="activarPestana('pestana-horas', this)" id="tab-pestana-horas" role="tab" aria-selected="false" aria-controls="pestana-horas" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer" title="Actividad Horaria" aria-label="Actividad Horaria">
-                            <span class="tab-ico" aria-hidden="true">🕒</span><span class="tab-txt">Actividad Horaria</span>
+                            <span class="tab-ico" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-reloj"/></svg></span><span class="tab-txt">Actividad Horaria</span>
                         </button>
                         <button onclick="activarPestana('pestana-heatmap', this)" id="tab-pestana-heatmap" role="tab" aria-selected="false" aria-controls="pestana-heatmap" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer" title="Día × Hora" aria-label="Día × Hora">
-                            <span class="tab-ico" aria-hidden="true">🗓️</span><span class="tab-txt">Día × Hora</span>
+                            <span class="tab-ico" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-mapa"/></svg></span><span class="tab-txt">Día × Hora</span>
                         </button>
                         <button onclick="activarPestana('pestana-matriz', this)" id="tab-pestana-matriz" role="tab" aria-selected="false" aria-controls="pestana-matriz" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer" title="Matriz de Afinidad" aria-label="Matriz de Afinidad">
-                            <span class="tab-ico" aria-hidden="true">🧩</span><span class="tab-txt">Matriz de Afinidad</span>
+                            <span class="tab-ico" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-afinidad"/></svg></span><span class="tab-txt">Matriz de Afinidad</span>
                         </button>
                         <button onclick="activarPestana('pestana-evolucion', this)" id="tab-pestana-evolucion" role="tab" aria-selected="false" aria-controls="pestana-evolucion" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer" title="Evolución Anual" aria-label="Evolución Anual">
-                            <span class="tab-ico" aria-hidden="true">📅</span><span class="tab-txt">Evolución Anual</span>
+                            <span class="tab-ico" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-tendencia"/></svg></span><span class="tab-txt">Evolución Anual</span>
                         </button>
                         <button onclick="activarPestana('pestana-tiempo', this)" id="tab-pestana-tiempo" role="tab" aria-selected="false" aria-controls="pestana-tiempo" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer" title="Tiempos de Respuesta" aria-label="Tiempos de Respuesta">
-                            <span class="tab-ico" aria-hidden="true">⏱️</span><span class="tab-txt">Tiempos de Respuesta</span>
+                            <span class="tab-ico" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-tiempo"/></svg></span><span class="tab-txt">Tiempos de Respuesta</span>
                         </button>
                         <button onclick="activarPestana('pestana-fantasma', this)" id="tab-pestana-fantasma" role="tab" aria-selected="false" aria-controls="pestana-fantasma" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer" title="Mensajes Fantasma" aria-label="Mensajes Fantasma">
-                            <span class="tab-ico" aria-hidden="true">👻</span><span class="tab-txt">Mensajes Fantasma</span>
+                            <span class="tab-ico" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-fantasma"/></svg></span><span class="tab-txt">Mensajes Fantasma</span>
                         </button>
                         <button onclick="activarPestana('pestana-multimedia', this)" id="tab-pestana-multimedia" role="tab" aria-selected="false" aria-controls="pestana-multimedia" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer" title="Multimedia" aria-label="Multimedia">
-                            <span class="tab-ico" aria-hidden="true">📎</span><span class="tab-txt">Multimedia</span>
+                            <span class="tab-ico" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-clip"/></svg></span><span class="tab-txt">Multimedia</span>
                         </button>
                         <button onclick="activarPestana('pestana-eliminados', this)" id="tab-pestana-eliminados" role="tab" aria-selected="false" aria-controls="pestana-eliminados" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer" title="Eliminados" aria-label="Eliminados">
-                            <span class="tab-ico" aria-hidden="true">🗑️</span><span class="tab-txt">Eliminados</span>
+                            <span class="tab-ico" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-papelera"/></svg></span><span class="tab-txt">Eliminados</span>
                         </button>
                         <button onclick="activarPestana('pestana-longitud', this)" id="tab-pestana-longitud" role="tab" aria-selected="false" aria-controls="pestana-longitud" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer" title="Longitud de Mensaje" aria-label="Longitud de Mensaje">
-                            <span class="tab-ico" aria-hidden="true">✍️</span><span class="tab-txt">Longitud de Mensaje</span>
+                            <span class="tab-ico" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-lapiz"/></svg></span><span class="tab-txt">Longitud de Mensaje</span>
                         </button>
                         {% if g10 %}
                         <button onclick="activarPestana('pestana-emojis', this)" id="tab-pestana-emojis" role="tab" aria-selected="false" aria-controls="pestana-emojis" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer" title="Emojis" aria-label="Emojis">
-                            <span class="tab-ico" aria-hidden="true">😂</span><span class="tab-txt">Emojis</span>
+                            <span class="tab-ico" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-cara"/></svg></span><span class="tab-txt">Emojis</span>
                         </button>
                         {% endif %}
                         <button onclick="activarPestana('pestana-palabras', this)" id="tab-pestana-palabras" role="tab" aria-selected="false" aria-controls="pestana-palabras" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer" title="Palabras Clave" aria-label="Palabras Clave">
-                            <span class="tab-ico" aria-hidden="true">🏷️</span><span class="tab-txt">Palabras Clave</span>
+                            <span class="tab-ico" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-etiqueta"/></svg></span><span class="tab-txt">Palabras Clave</span>
                         </button>
                         {% if g6_svg %}
                         <button onclick="activarPestana('pestana-burbujas', this)" id="tab-pestana-burbujas" role="tab" aria-selected="false" aria-controls="pestana-burbujas" class="tab-btn py-2.5 px-4 font-bold text-sm border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap transition cursor-pointer" title="Mapa de Conceptos" aria-label="Mapa de Conceptos">
-                            <span class="tab-ico" aria-hidden="true">🔮</span><span class="tab-txt">Mapa de Conceptos</span>
+                            <span class="tab-ico" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-burbujas"/></svg></span><span class="tab-txt">Mapa de Conceptos</span>
                         </button>
                         {% endif %}
                     </div>
@@ -342,73 +375,73 @@
 
                     <div id="pestana-ranking" role="tabpanel" aria-labelledby="tab-pestana-ranking" tabindex="0" class="tab-content bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col justify-between lg:h-full lg:overflow-hidden">
                         <div class="grafico-wrap">{{ g1 | safe }}</div>
-                        <button style="display:none" onclick="descargarPlotly('g-ranking', 'Ranking_Mensajes')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Gráfico de Ranking (PNG)</button>
+                        <button style="display:none" onclick="descargarPlotly('g-ranking', 'Ranking_Mensajes')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-descarga"/></svg> Guardar Gráfico de Ranking (PNG)</button>
                     </div>
 
                     <div id="pestana-horas" role="tabpanel" aria-labelledby="tab-pestana-horas" tabindex="0" class="tab-content hidden bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col justify-between lg:h-full lg:overflow-hidden">
                         <div class="grafico-wrap">{{ g2 | safe }}</div>
-                        <button style="display:none" onclick="descargarPlotly('g-horas', 'Actividad_Horaria')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Distribución Horaria (PNG)</button>
+                        <button style="display:none" onclick="descargarPlotly('g-horas', 'Actividad_Horaria')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-descarga"/></svg> Guardar Distribución Horaria (PNG)</button>
                     </div>
 
                     <div id="pestana-heatmap" role="tabpanel" aria-labelledby="tab-pestana-heatmap" tabindex="0" class="tab-content hidden bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col justify-between lg:h-full lg:overflow-hidden">
                         <div class="grafico-wrap ancho-min" style="--minw:640px">{{ g7 | safe }}</div>
                         <p class="pista-desliza">↔ Desliza horizontalmente para ver todas las horas</p>
-                        <button style="display:none" onclick="descargarPlotly('g-heatmap-semana', 'Heatmap_Dia_Hora')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Mapa de Calor (PNG)</button>
+                        <button style="display:none" onclick="descargarPlotly('g-heatmap-semana', 'Heatmap_Dia_Hora')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-descarga"/></svg> Guardar Mapa de Calor (PNG)</button>
                     </div>
 
                     <div id="pestana-matriz" role="tabpanel" aria-labelledby="tab-pestana-matriz" tabindex="0" class="tab-content hidden bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col justify-between lg:h-full lg:overflow-hidden">
                         <div class="grafico-wrap ancho-min" style="--minw:760px">{{ g3 | safe }}</div>
                         <p class="pista-desliza">↔ Desliza horizontalmente para ver toda la matriz</p>
-                        <button style="display:none" onclick="descargarPlotly('g-matriz', 'Matriz_Afinidad_Cruzada')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Matriz de Afinidad (PNG)</button>
+                        <button style="display:none" onclick="descargarPlotly('g-matriz', 'Matriz_Afinidad_Cruzada')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-descarga"/></svg> Guardar Matriz de Afinidad (PNG)</button>
                     </div>
 
                     <div id="pestana-evolucion" role="tabpanel" aria-labelledby="tab-pestana-evolucion" tabindex="0" class="tab-content hidden bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col justify-between lg:h-full lg:overflow-hidden">
                         <div class="grafico-wrap">{{ g4 | safe }}</div>
-                        <button style="display:none" onclick="descargarPlotly('g-evolucion', 'Evolucion_Anual')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Evolución Anual (PNG)</button>
+                        <button style="display:none" onclick="descargarPlotly('g-evolucion', 'Evolucion_Anual')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-descarga"/></svg> Guardar Evolución Anual (PNG)</button>
                     </div>
 
                     <div id="pestana-tiempo" role="tabpanel" aria-labelledby="tab-pestana-tiempo" tabindex="0" class="tab-content hidden bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col justify-between lg:h-full lg:overflow-hidden">
                         <div class="grafico-wrap">{{ g5_tiempo | safe }}</div>
-                        <button style="display:none" onclick="descargarPlotly('g-tiempo', 'Tiempos_Respuesta')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Tiempos de Respuesta (PNG)</button>
+                        <button style="display:none" onclick="descargarPlotly('g-tiempo', 'Tiempos_Respuesta')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-descarga"/></svg> Guardar Tiempos de Respuesta (PNG)</button>
                     </div>
 
                     <div id="pestana-fantasma" role="tabpanel" aria-labelledby="tab-pestana-fantasma" tabindex="0" class="tab-content hidden bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col justify-between lg:h-full lg:overflow-hidden">
                         <div class="grafico-wrap">{{ g5_fantasma | safe }}</div>
-                        <button style="display:none" onclick="descargarPlotly('g-fantasma', 'Mensajes_Fantasma')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Mensajes Fantasma (PNG)</button>
+                        <button style="display:none" onclick="descargarPlotly('g-fantasma', 'Mensajes_Fantasma')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-descarga"/></svg> Guardar Mensajes Fantasma (PNG)</button>
                     </div>
 
                     <div id="pestana-multimedia" role="tabpanel" aria-labelledby="tab-pestana-multimedia" tabindex="0" class="tab-content hidden bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col justify-between lg:h-full lg:overflow-hidden">
                         <div class="grafico-wrap">{{ g8 | safe }}</div>
-                        <button style="display:none" onclick="descargarPlotly('g-multimedia', 'Multimedia_Por_Usuario')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Gráfico de Multimedia (PNG)</button>
+                        <button style="display:none" onclick="descargarPlotly('g-multimedia', 'Multimedia_Por_Usuario')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-descarga"/></svg> Guardar Gráfico de Multimedia (PNG)</button>
                     </div>
 
                     <div id="pestana-eliminados" role="tabpanel" aria-labelledby="tab-pestana-eliminados" tabindex="0" class="tab-content hidden bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col justify-between lg:h-full lg:overflow-hidden">
                         <div class="grafico-wrap">{{ g8b | safe }}</div>
-                        <button style="display:none" onclick="descargarPlotly('g-eliminados', 'Mensajes_Eliminados')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Gráfico de Eliminados (PNG)</button>
+                        <button style="display:none" onclick="descargarPlotly('g-eliminados', 'Mensajes_Eliminados')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-descarga"/></svg> Guardar Gráfico de Eliminados (PNG)</button>
                     </div>
 
                     <div id="pestana-longitud" role="tabpanel" aria-labelledby="tab-pestana-longitud" tabindex="0" class="tab-content hidden bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col justify-between lg:h-full lg:overflow-hidden">
                         <div class="grafico-wrap">{{ g9 | safe }}</div>
-                        <button style="display:none" onclick="descargarPlotly('g-longitud', 'Longitud_Media_Mensaje')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Longitud de Mensaje (PNG)</button>
+                        <button style="display:none" onclick="descargarPlotly('g-longitud', 'Longitud_Media_Mensaje')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-descarga"/></svg> Guardar Longitud de Mensaje (PNG)</button>
                     </div>
 
                     {% if g10 %}
                     <div id="pestana-emojis" role="tabpanel" aria-labelledby="tab-pestana-emojis" tabindex="0" class="tab-content hidden bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col justify-between lg:h-full lg:overflow-hidden">
                         <div class="grafico-wrap">{{ g10 | safe }}</div>
-                        <button style="display:none" onclick="descargarPlotly('g-emojis', 'Ranking_Emojis')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Ranking de Emojis (PNG)</button>
+                        <button style="display:none" onclick="descargarPlotly('g-emojis', 'Ranking_Emojis')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-descarga"/></svg> Guardar Ranking de Emojis (PNG)</button>
                     </div>
                     {% endif %}
 
                     <div id="pestana-palabras" role="tabpanel" aria-labelledby="tab-pestana-palabras" tabindex="0" class="tab-content hidden bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col justify-between lg:h-full lg:overflow-hidden">
                         <div class="grafico-wrap grafico-scroll">{{ g_palabras | safe }}</div>
-                        <button style="display:none" onclick="descargarPlotly('g-palabras', 'Frecuencia_Palabras')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide">📥 Guardar Frecuencia de Palabras (PNG)</button>
+                        <button style="display:none" onclick="descargarPlotly('g-palabras', 'Frecuencia_Palabras')" class="mt-3 shrink-0 w-full bg-slate-200 dark:bg-slate-700 hover:bg-teal-500 hover:text-slate-950 font-black py-3 px-4 rounded-xl transition text-sm shadow cursor-pointer tracking-wide"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-descarga"/></svg> Guardar Frecuencia de Palabras (PNG)</button>
                     </div>
 
                     {% if g6_svg %}
                     <div id="pestana-burbujas" role="tabpanel" aria-labelledby="tab-pestana-burbujas" tabindex="0" class="tab-content hidden bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col justify-between lg:h-full lg:overflow-hidden">
                         <div id="burbujasWrap" role="button" tabindex="0" aria-expanded="false" aria-label="Mapa de conceptos. Pulsa para ampliarlo a pantalla completa; pasa el cursor por una burbuja para ver su detalle.">
                             {{ g6_svg | safe }}
-                            <span id="burbujasPista" class="burbujas-pista">🔍 Pasa el cursor por una burbuja para ver el detalle · Haz clic para ampliar</span>
+                            <span id="burbujasPista" class="burbujas-pista"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-lupa"/></svg> Pasa el cursor por una burbuja para ver el detalle · Haz clic para ampliar</span>
                             <button type="button" id="btnCerrarBurbujas" class="burbujas-cerrar" aria-label="Cerrar pantalla completa">✕</button>
                             <div id="tooltipBurbuja" class="burbujas-tooltip" role="tooltip" hidden></div>
                         </div>
@@ -420,10 +453,10 @@
 
             <div id="panelTabla" class="cerrada bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl lg:h-full flex flex-col lg:overflow-hidden lg:min-h-0">
                 <div class="cabecera-tabla flex items-center justify-between gap-2 mb-2 shrink-0">
-                    <h3 id="tituloTabla" class="text-base font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">🏆 Ranking de mensajes por miembro</h3>
+                    <h3 id="tituloTabla" class="text-base font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-trofeo"/></svg> Ranking de mensajes por miembro</h3>
                     <button id="btnTabla" type="button" onclick="alternarTabla()" aria-expanded="false" aria-controls="contenidoTabla" aria-label="Mostrar el ranking de mensajes" title="Mostrar el ranking" class="btn-tabla">
                         <span class="tabla-flecha" aria-hidden="true"></span>
-                        <span class="tabla-etiqueta" aria-hidden="true">🏆 Ranking de mensajes</span>
+                        <span class="tabla-etiqueta" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-trofeo"/></svg> Ranking de mensajes</span>
                     </button>
                 </div>
                 <div id="contenidoTabla" class="overflow-x-auto max-h-[400px] lg:max-h-none overflow-y-auto lg:flex-1 lg:min-h-0 scrollbar-thin pr-3">
@@ -449,6 +482,29 @@
         </div>
     </main>
 
+    <!-- Carrusel para compartir -->
+    <div id="modalCompartir" class="info-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="compartirTitulo" onclick="if (event.target === this) cerrarCompartir()">
+        <div class="info-panel cmp-panel">
+            <button type="button" id="btnCerrarCompartir" class="info-cerrar" onclick="cerrarCompartir()" aria-label="Cerrar">✕</button>
+            <h3 id="compartirTitulo" class="info-titulo">Tu resumen para compartir</h3>
+            <p id="cmpEstado" class="cmp-estado" role="status">Preparando imágenes…</p>
+            <div id="cmpContenido" hidden>
+                <div id="cmpEscenario" class="cmp-escenario">
+                    <img id="cmpImagen" alt="" draggable="false">
+                    <button type="button" id="cmpAnterior" class="cmp-flecha izq" onclick="mostrarDiapo(diapoActual - 1)" aria-label="Imagen anterior">‹</button>
+                    <button type="button" id="cmpSiguiente" class="cmp-flecha der" onclick="mostrarDiapo(diapoActual + 1)" aria-label="Imagen siguiente">›</button>
+                </div>
+                <div id="cmpPuntos" class="cmp-puntos"></div>
+                <div class="cmp-acciones">
+                    <a id="cmpDescargar" class="cmp-boton" href="#" download="resumen.png"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-descarga"/></svg> Esta imagen</a>
+                    <button type="button" class="cmp-boton sec" onclick="descargarTodas()"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-descarga"/></svg> Descargar todas</button>
+                    <button type="button" id="cmpCompartir" class="cmp-boton sec" hidden><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-compartir"/></svg> Compartir…</button>
+                </div>
+            </div>
+            <p class="cmp-nota">Las imágenes se crean en tu navegador y solo llevan números, palabras sueltas y nombres de miembros; no incluyen ningún mensaje.</p>
+        </div>
+    </div>
+
     <!-- Información: todos los perfiles y por qué se asignan -->
     <div id="modalInfoPerfiles" class="info-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="infoPerfilesTitulo" onclick="if (event.target === this) cerrarInfoPerfiles()">
         <div class="info-panel">
@@ -463,7 +519,7 @@
             <ul class="info-lista">
                 {% for perfil in catalogo_perfiles %}
                 <li class="info-item">
-                    <span class="info-emoji" aria-hidden="true">{{ perfil.emoji }}</span>
+                    <span class="info-emoji" aria-hidden="true"><svg class="ico"><use href="/static/iconos.svg#i-{{ perfil.emoji }}"/></svg></span>
                     <div>
                         <p class="info-nombre">{{ perfil.titulo }}</p>
                         <p class="info-criterio">{{ perfil.criterio }}</p>
@@ -534,7 +590,7 @@
         function alternarTema() {
             const esOscuroAhora = document.documentElement.classList.toggle('dark');
             localStorage.setItem('whatsinchat-theme', esOscuroAhora ? 'dark' : 'light');
-            document.getElementById('iconoTema').textContent = esOscuroAhora ? '☀️' : '🌙';
+            pintarIconoTema(esOscuroAhora);
             aplicarTemaGraficas();
         }
 
@@ -579,7 +635,7 @@
         }
         // Se espera a que Plotly haya terminado de dibujar las gráficas
         window.addEventListener('load', () => requestAnimationFrame(aplicarTemaGraficas));
-        document.getElementById('iconoTema').textContent = document.documentElement.classList.contains('dark') ? '☀️' : '🌙';
+        pintarIconoTema(document.documentElement.classList.contains('dark'));
 
         // Perfil de cada integrante, calculado en el servidor (nunca se envía
         // el texto de los mensajes, solo estos agregados ya calculados).
@@ -606,12 +662,13 @@
             const caja = document.getElementById('perfilEtiqueta');
             const et = perfil.etiqueta;
             if (et) {
-                document.getElementById('perfilEtiquetaEmoji').textContent = et.emoji;
+                document.getElementById('perfilEtiquetaEmoji').innerHTML = svgIco(et.emoji);
                 document.getElementById('perfilEtiquetaTitulo').textContent = et.titulo;
                 document.getElementById('perfilEtiquetaExplicacion').textContent = et.explicacion;
                 const sec = document.getElementById('perfilEtiquetaSec');
                 if (et.secundario) {
-                    sec.textContent = 'También: ' + et.secundario.emoji + ' ' + et.secundario.titulo;
+                    sec.innerHTML = 'También: ' + svgIco(et.secundario.emoji) + ' ';
+                    sec.appendChild(document.createTextNode(et.secundario.titulo));
                     sec.hidden = false;
                 } else {
                     sec.hidden = true;
@@ -643,6 +700,327 @@
             }
         }
 
+
+        // --- Carrusel para compartir (cada diapositiva se dibuja en el navegador como SVG y se convierte a PNG) ---
+        const resumenCompartir = {{ resumen_compartir_json | safe }};
+        const nombreGrupoCompartir = {{ (nombre_grupo or '') | tojson }};
+        let diapositivas = [], diapoActual = 0, focoAntesDeCompartir = null, iconosSprite = null, carruselListo = false, carruselGenerando = false;
+
+        function escXml(t) {
+            return String(t).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+        }
+        function recortar(texto, max) {
+            texto = String(texto);
+            return texto.length > max ? texto.slice(0, Math.max(1, max - 1)).trimEnd() + '…' : texto;
+        }
+        function partirEnLineas(texto, maxChars, maxLineas) {
+            const palabras = texto.split(/\s+/).filter(Boolean), lineas = [];
+            let actual = '';
+            for (const p of palabras) {
+                if ((actual + ' ' + p).trim().length <= maxChars) { actual = (actual + ' ' + p).trim(); continue; }
+                if (actual) lineas.push(actual);
+                actual = p.length > maxChars ? p.slice(0, maxChars) : p;
+            }
+            if (actual) lineas.push(actual);
+            if (lineas.length > maxLineas) {
+                lineas.length = maxLineas;
+                lineas[maxLineas - 1] = recortar(lineas[maxLineas - 1] + '…', maxChars);
+            }
+            return lineas;
+        }
+        function formatoMiles(n) { return String(Math.round(Number(n))).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
+
+        async function cargarIconos() {
+            if (iconosSprite) return iconosSprite;
+            iconosSprite = {};
+            try {
+                const texto = await (await fetch('/static/iconos.svg')).text();
+                const doc = new DOMParser().parseFromString(texto, 'image/svg+xml');
+                doc.querySelectorAll('symbol').forEach(sym => { iconosSprite[sym.id.replace(/^i-/, '')] = sym.innerHTML; });
+            } catch (e) { /* sin iconos las imágenes siguen funcionando */ }
+            return iconosSprite;
+        }
+        function iconoSvg(nombre, x, y, tam, color) {
+            const interior = iconosSprite && iconosSprite[nombre];
+            if (!interior) return '';
+            return '<g transform="translate(' + x + ' ' + y + ') scale(' + (tam / 24) + ')" fill="none" stroke="' + color +
+                   '" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + interior.replace(/currentColor/g, color) + '</g>';
+        }
+
+        const TARJETA = {
+            W: 1080, H: 1350,
+            FUENTE: "Inter, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+            TEAL: '#14b8a6', TEAL_CLARO: '#5eead4', TEXTO: '#f1f5f9', TENUE: '#94a3b8', AMBAR: '#f59e0b',
+            PODIO: ['#f59e0b', '#94a3b8', '#c2763a'],
+        };
+
+        // Marco común: fondo, siluetas, marca arriba, contador y pie
+        function marcoTarjeta(contenido, indice, total) {
+            const {W, H, FUENTE, TEAL_CLARO, TEXTO, TENUE} = TARJETA;
+            const p = [];
+            p.push('<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" font-family="' + FUENTE + '">');
+            p.push('<defs><linearGradient id="fondo" x1="0" y1="0" x2="0.4" y2="1"><stop offset="0" stop-color="#0b3b3f"/><stop offset="0.45" stop-color="#0b1426"/><stop offset="1" stop-color="#070d1a"/></linearGradient>' +
+                   '<linearGradient id="num" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2dd4bf"/><stop offset="1" stop-color="#38bdf8"/></linearGradient>' +
+                   '<radialGradient id="brillo" cx="0.85" cy="0.05" r="0.6"><stop offset="0" stop-color="#f59e0b" stop-opacity="0.22"/><stop offset="1" stop-color="#f59e0b" stop-opacity="0"/></radialGradient></defs>');
+            p.push('<rect width="' + W + '" height="' + H + '" fill="url(#fondo)"/><rect width="' + W + '" height="' + H + '" fill="url(#brillo)"/>');
+            let semilla = 7 + indice * 13;
+            const azar = () => { semilla = (semilla * 9301 + 49297) % 233280; return semilla / 233280; };
+            for (let x = 6; x < W; x += 36) {
+                const alto = 50 + Math.round(azar() * 190);
+                p.push('<rect x="' + x + '" y="' + (H - alto) + '" width="24" height="' + alto + '" rx="6" fill="#14b8a6" opacity="0.12"/>');
+            }
+            p.push('<g transform="translate(80 62) scale(1.1)"><path d="M10 4h44a8 8 0 0 1 8 8v28a8 8 0 0 1-8 8H34L20 60V48h-10a8 8 0 0 1-8-8V12a8 8 0 0 1 8-8z" fill="#0f766e"/>' +
+                   '<rect x="13" y="26" width="10" height="14" rx="2" fill="#fff"/><rect x="27" y="14" width="10" height="26" rx="2" fill="#5eead4"/><rect x="41" y="21" width="10" height="19" rx="2" fill="#fff"/></g>');
+            p.push('<text x="166" y="118" font-size="40" font-weight="800" fill="' + TEXTO + '">Whats<tspan fill="' + TEAL_CLARO + '">In</tspan>Chat</text>');
+            p.push('<text x="1000" y="116" font-size="30" font-weight="700" text-anchor="end" fill="' + TENUE + '">' + (indice + 1) + ' / ' + total + '</text>');
+            p.push(contenido);
+            const host = /^(localhost|127\.|0\.0\.0\.0)/.test(location.hostname) ? 'whatsinchat.onrender.com' : location.host;
+            p.push('<text x="540" y="1296" font-size="28" font-weight="700" text-anchor="middle" fill="' + TEXTO + '">Descubre el de tu grupo en ' + escXml(host) + '</text>');
+            p.push('</svg>');
+            return p.join('');
+        }
+
+        function etiquetaTitulo(supra, titulo, y) {
+            const {TEAL_CLARO, TEXTO} = TARJETA;
+            return '<text x="80" y="' + y + '" font-size="26" font-weight="700" letter-spacing="5" fill="' + TEAL_CLARO + '">' + escXml(supra) + '</text>' +
+                   '<text x="80" y="' + (y + 84) + '" font-size="76" font-weight="800" fill="' + TEXTO + '">' + escXml(titulo) + '</text>';
+        }
+
+        // 1. Portada
+        function diapoPortada(r) {
+            const {TEAL_CLARO, TEXTO, TENUE} = TARJETA, p = [];
+            p.push('<text x="80" y="400" font-size="26" font-weight="700" letter-spacing="5" fill="' + TEAL_CLARO + '">EL RESUMEN DE</text>');
+            const nombre = (nombreGrupoCompartir || 'tu grupo').trim();
+            const tam = nombre.length <= 14 ? 96 : nombre.length <= 24 ? 74 : 60;
+            const lineas = partirEnLineas(nombre, Math.floor(920 / (tam * 0.56)), 3);
+            lineas.forEach((l, i) => p.push('<text x="80" y="' + (484 + i * tam * 1.12) + '" font-size="' + tam + '" font-weight="800" fill="' + TEXTO + '">' + escXml(l) + '</text>'));
+            const yPer = 484 + (lineas.length - 1) * tam * 1.12 + 62;
+            p.push('<text x="80" y="' + yPer + '" font-size="31" fill="' + TENUE + '">' + escXml(r.inicio + '  →  ' + r.fin + '  ·  ' + formatoMiles(r.dias) + ' días') + '</text>');
+            const tamNum = String(formatoMiles(r.total)).length > 7 ? 160 : 196;
+            const yNum = Math.max(yPer + 260, 880);
+            p.push('<text x="76" y="' + yNum + '" font-size="' + tamNum + '" font-weight="900" fill="url(#num)">' + escXml(formatoMiles(r.total)) + '</text>');
+            p.push('<text x="80" y="' + (yNum + 62) + '" font-size="38" fill="' + TEXTO + '">mensajes entre <tspan font-weight="800" fill="' + TEAL_CLARO + '">' + formatoMiles(r.miembros) + '</tspan> personas</text>');
+            p.push('<text x="80" y="' + (yNum + 116) + '" font-size="32" fill="' + TENUE + '">' + formatoMiles(r.media_dia) + ' al día de media</text>');
+            return p.join('');
+        }
+
+        // 2. Podio
+        function diapoPodio(r) {
+            const {TEAL, TEXTO, TENUE, AMBAR, PODIO} = TARJETA, p = [];
+            p.push(etiquetaTitulo('LOS QUE MÁS HABLAN', 'El podio', 250));
+            const maxMsg = Math.max(1, ...r.top.map(t => t.mensajes));
+            r.top.forEach((t, i) => {
+                const y = 440 + i * 245;
+                p.push('<circle cx="124" cy="' + (y + 52) + '" r="48" fill="' + PODIO[i] + '"/>');
+                p.push('<text x="124" y="' + (y + 74) + '" font-size="58" font-weight="900" text-anchor="middle" fill="#0b1220">' + (i + 1) + '</text>');
+                const nom = recortar(t.nombre, 19);
+                p.push('<text x="206" y="' + (y + 38) + '" font-size="52" font-weight="800" fill="' + TEXTO + '">' + escXml(nom) + '</text>');
+                if (t.perfil) {
+                    p.push(iconoSvg(t.icono, 206, y + 56, 32, TENUE));
+                    p.push('<text x="248" y="' + (y + 82) + '" font-size="29" fill="' + TENUE + '">' + escXml(recortar(t.perfil, 24)) + '</text>');
+                }
+                const ancho = Math.max(24, Math.round(640 * t.mensajes / maxMsg));
+                p.push('<rect x="206" y="' + (y + 110) + '" width="' + ancho + '" height="24" rx="12" fill="' + (i === 0 ? AMBAR : TEAL) + '"/>');
+                p.push('<text x="1000" y="' + (y + 56) + '" font-size="54" font-weight="800" text-anchor="end" fill="' + TEXTO + '">' + escXml(formatoMiles(t.mensajes)) + '</text>');
+                p.push('<text x="1000" y="' + (y + 104) + '" font-size="29" text-anchor="end" fill="' + TENUE + '">' + t.pct + '% del grupo</text>');
+            });
+            return p.join('');
+        }
+
+        // 3. Cuándo se habla
+        function minigrafica(valores, x, y, ancho, alto, ancho_barra, etiquetas) {
+            const {TEAL, AMBAR, TENUE} = TARJETA, p = [];
+            const max = Math.max(1, ...valores), n = valores.length, paso = ancho / n;
+            const idxPico = valores.indexOf(Math.max(...valores));
+            valores.forEach((v, i) => {
+                const h = Math.max(4, Math.round(alto * v / max));
+                p.push('<rect x="' + (x + i * paso + (paso - ancho_barra) / 2) + '" y="' + (y + alto - h) + '" width="' + ancho_barra + '" height="' + h + '" rx="' + Math.min(8, ancho_barra / 2) + '" fill="' + (i === idxPico ? AMBAR : TEAL) + '"/>');
+            });
+            etiquetas.forEach(([i, t]) => p.push('<text x="' + (x + i * paso + paso / 2) + '" y="' + (y + alto + 38) + '" font-size="25" text-anchor="middle" fill="' + TENUE + '">' + escXml(t) + '</text>'));
+            return p.join('');
+        }
+        function diapoCuando(r) {
+            const {TEAL_CLARO, TEXTO, TENUE} = TARJETA, p = [];
+            p.push(etiquetaTitulo('CUÁNDO SE HABLA', 'Hora y día', 250));
+            p.push('<text x="80" y="470" font-size="24" font-weight="700" letter-spacing="4" fill="' + TENUE + '">HORA PICO</text>');
+            p.push('<text x="76" y="590" font-size="130" font-weight="900" fill="url(#num)">' + String(r.hora_pico).padStart(2, '0') + ':00 h</text>');
+            p.push(minigrafica(r.horas, 80, 640, 920, 190, 20, [[0, '0h'], [6, '6h'], [12, '12h'], [18, '18h'], [23, '23h']]));
+            p.push('<text x="80" y="960" font-size="24" font-weight="700" letter-spacing="4" fill="' + TENUE + '">DÍA MÁS ACTIVO</text>');
+            p.push('<text x="76" y="1070" font-size="100" font-weight="900" fill="' + TEXTO + '">' + escXml(r.dia_pico) + '</text>');
+            p.push(minigrafica(r.dias_semana, 80, 1110, 920, 90, 70, [[0, 'L'], [1, 'M'], [2, 'X'], [3, 'J'], [4, 'V'], [5, 'S'], [6, 'D']]));
+            return p.join('');
+        }
+
+        // 4. Palabra y emoji
+        function diapoPalabras(r) {
+            const {TEAL_CLARO, TEXTO, TENUE} = TARJETA, p = [];
+            p.push(etiquetaTitulo('LO QUE MÁS SE DICE', 'El vocabulario', 250));
+            let y = 470;
+            if (r.palabra) {
+                p.push('<text x="80" y="' + y + '" font-size="24" font-weight="700" letter-spacing="4" fill="' + TENUE + '">LA PALABRA DEL GRUPO</text>');
+                const pal = recortar(r.palabra.palabra, 14);
+                const tam = pal.length <= 7 ? 190 : pal.length <= 10 ? 140 : 100;
+                p.push('<text x="76" y="' + (y + tam * 0.95) + '" font-size="' + tam + '" font-weight="900" fill="url(#num)">' + escXml(pal) + '</text>');
+                const y2 = y + tam * 0.95 + 92;
+                p.push('<text x="80" y="' + y2 + '" font-size="36" fill="' + TEXTO + '"><tspan font-weight="800" fill="' + TEAL_CLARO + '">' + formatoMiles(r.palabra.veces) + '</tspan> veces' + (r.palabra.autor ? ' · la usa más <tspan font-weight="800">' + escXml(recortar(r.palabra.autor, 18)) + '</tspan>' : '') + '</text>');
+                y = y2 + 110;
+            }
+            if (r.emoji) {
+                p.push('<text x="80" y="' + y + '" font-size="24" font-weight="700" letter-spacing="4" fill="' + TENUE + '">EL EMOJI DEL GRUPO</text>');
+                p.push('<text x="80" y="' + (y + 220) + '" font-size="210">' + escXml(r.emoji.emoji) + '</text>');
+                p.push('<text x="400" y="' + (y + 150) + '" font-size="40" fill="' + TEXTO + '"><tspan font-weight="800" fill="' + TEAL_CLARO + '">' + formatoMiles(r.emoji.veces) + '</tspan> veces</text>');
+            }
+            return p.join('');
+        }
+
+        // 5. Premios
+        function diapoPremios(r) {
+            const {TEAL_CLARO, TEXTO, TENUE} = TARJETA, p = [];
+            p.push(etiquetaTitulo('Y LOS PREMIOS SON PARA…', 'El palmarés', 250));
+            const alto = r.premios.length > 4 ? 158 : 178;
+            r.premios.forEach((pr, i) => {
+                const y = 400 + i * (alto + 14);
+                p.push('<rect x="80" y="' + y + '" width="920" height="' + alto + '" rx="30" fill="#ffffff" fill-opacity="0.06" stroke="#ffffff" stroke-opacity="0.12"/>');
+                p.push('<circle cx="160" cy="' + (y + alto / 2) + '" r="42" fill="#14b8a6" fill-opacity="0.18"/>');
+                p.push(iconoSvg(pr.icono, 136, y + alto / 2 - 24, 48, TEAL_CLARO));
+                p.push('<text x="230" y="' + (y + 40) + '" font-size="23" font-weight="700" letter-spacing="3" fill="' + TEAL_CLARO + '">' + escXml(pr.titulo.toUpperCase()) + '</text>');
+                p.push('<text x="230" y="' + (y + 90) + '" font-size="48" font-weight="800" fill="' + TEXTO + '">' + escXml(recortar(pr.nombre, 20)) + '</text>');
+                p.push('<text x="230" y="' + (y + alto - 24) + '" font-size="26" fill="' + TENUE + '">' + escXml(recortar(pr.dato, 48)) + '</text>');
+            });
+            return p.join('');
+        }
+
+        // 6. Cierre
+        function diapoCierre(r) {
+            const {TEAL_CLARO, TEXTO, TENUE} = TARJETA, p = [];
+            p.push(etiquetaTitulo('UN DATO CURIOSO', 'El día récord', 250));
+            p.push('<text x="76" y="640" font-size="150" font-weight="900" fill="url(#num)">' + escXml(r.dia_record.fecha) + '</text>');
+            p.push('<text x="80" y="720" font-size="42" fill="' + TEXTO + '">Ese día se escribieron</text>');
+            p.push('<text x="76" y="860" font-size="140" font-weight="900" fill="' + TEXTO + '">' + escXml(formatoMiles(r.dia_record.mensajes)) + '</text>');
+            p.push('<text x="80" y="930" font-size="42" fill="' + TEXTO + '">mensajes en un solo día</text>');
+            p.push('<rect x="80" y="1020" width="920" height="150" rx="34" fill="#14b8a6" fill-opacity="0.16" stroke="#14b8a6" stroke-opacity="0.5"/>');
+            p.push('<text x="540" y="1085" font-size="40" font-weight="800" text-anchor="middle" fill="' + TEXTO + '">¿Y el resumen de tu grupo?</text>');
+            p.push('<text x="540" y="1136" font-size="30" text-anchor="middle" fill="' + TEAL_CLARO + '">Sube tu chat, sin registro y sin guardar nada</text>');
+            return p.join('');
+        }
+
+        function construirDiapositivas(r) {
+            const lista = [diapoPortada, diapoPodio, diapoCuando];
+            if (r.palabra || r.emoji) lista.push(diapoPalabras);
+            if (r.premios && r.premios.length >= 2) lista.push(diapoPremios);
+            if (r.dia_record) lista.push(diapoCierre);
+            return lista.map((fn, i) => marcoTarjeta(fn(r), i, lista.length));
+        }
+
+        function svgAPng(svg) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => {
+                    const lienzo = document.createElement('canvas');
+                    lienzo.width = 1080; lienzo.height = 1350;
+                    lienzo.getContext('2d').drawImage(img, 0, 0, 1080, 1350);
+                    lienzo.toBlob(b => b ? resolve(b) : reject(new Error('sin imagen')), 'image/png');
+                };
+                img.onerror = () => reject(new Error('no se pudo dibujar'));
+                img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+            });
+        }
+
+        function nombreArchivoDiapo(i) {
+            const base = (nombreGrupoCompartir || 'resumen').toLowerCase().replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').slice(0, 30) || 'resumen';
+            return 'whatsinchat-' + base + '-' + (i + 1) + '.png';
+        }
+
+        function mostrarDiapo(i) {
+            if (!diapositivas.length) return;
+            diapoActual = Math.max(0, Math.min(i, diapositivas.length - 1));
+            const d = diapositivas[diapoActual];
+            document.getElementById('cmpImagen').src = d.url;
+            document.getElementById('cmpImagen').alt = 'Imagen ' + (diapoActual + 1) + ' de ' + diapositivas.length;
+            document.getElementById('cmpAnterior').disabled = diapoActual === 0;
+            document.getElementById('cmpSiguiente').disabled = diapoActual === diapositivas.length - 1;
+            const bd = document.getElementById('cmpDescargar');
+            bd.href = d.url; bd.download = d.nombre;
+            document.querySelectorAll('#cmpPuntos button').forEach((b, k) => b.setAttribute('aria-current', k === diapoActual ? 'true' : 'false'));
+        }
+
+        function descargarTodas() {
+            diapositivas.forEach((d, k) => setTimeout(() => {
+                const a = document.createElement('a');
+                a.href = d.url; a.download = d.nombre;
+                document.body.appendChild(a); a.click(); a.remove();
+            }, k * 350));
+        }
+
+        async function prepararCarrusel() {
+            if (carruselListo || carruselGenerando) return;
+            carruselGenerando = true;
+            const estado = document.getElementById('cmpEstado');
+            try {
+                await cargarIconos();
+                const svgs = construirDiapositivas(resumenCompartir);
+                for (let i = 0; i < svgs.length; i++) {
+                    estado.textContent = 'Preparando imágenes… ' + (i + 1) + '/' + svgs.length;
+                    const blob = await svgAPng(svgs[i]);
+                    diapositivas.push({blob: blob, url: URL.createObjectURL(blob), nombre: nombreArchivoDiapo(i)});
+                }
+                const puntos = document.getElementById('cmpPuntos');
+                puntos.textContent = '';
+                diapositivas.forEach((d, k) => {
+                    const b = document.createElement('button');
+                    b.type = 'button'; b.setAttribute('aria-label', 'Ir a la imagen ' + (k + 1));
+                    b.addEventListener('click', () => mostrarDiapo(k));
+                    puntos.appendChild(b);
+                });
+                document.getElementById('cmpContenido').hidden = false;
+                estado.hidden = true;
+                mostrarDiapo(0);
+                carruselListo = true;
+                const archivos = diapositivas.map(d => new File([d.blob], d.nombre, {type: 'image/png'}));
+                if (navigator.canShare && navigator.canShare({files: archivos})) {
+                    const bc = document.getElementById('cmpCompartir');
+                    bc.hidden = false;
+                    bc.onclick = () => navigator.share({files: archivos, title: 'Resumen de ' + (nombreGrupoCompartir || 'mi grupo')}).catch(() => {});
+                }
+            } catch (e) {
+                estado.textContent = 'No se pudieron crear las imágenes en este navegador.';
+            }
+            carruselGenerando = false;
+        }
+
+        function abrirCompartir() {
+            if (!resumenCompartir) return;
+            focoAntesDeCompartir = document.activeElement;
+            document.getElementById('modalCompartir').hidden = false;
+            document.getElementById('btnCerrarCompartir').focus();
+            prepararCarrusel();
+        }
+        function cerrarCompartir() {
+            const modal = document.getElementById('modalCompartir');
+            if (!modal || modal.hidden) return false;
+            modal.hidden = true;
+            if (focoAntesDeCompartir) { focoAntesDeCompartir.focus(); focoAntesDeCompartir = null; }
+            return true;
+        }
+        document.addEventListener('keydown', (e) => {
+            if (document.getElementById('modalCompartir').hidden) return;
+            if (e.key === 'ArrowRight') { e.preventDefault(); mostrarDiapo(diapoActual + 1); }
+            else if (e.key === 'ArrowLeft') { e.preventDefault(); mostrarDiapo(diapoActual - 1); }
+        });
+        (function () {
+            // Deslizar con el dedo o el ratón
+            let inicioX = null;
+            const escenario = document.getElementById('cmpEscenario');
+            if (!escenario) return;
+            escenario.addEventListener('pointerdown', e => { inicioX = e.clientX; });
+            escenario.addEventListener('pointerup', e => {
+                if (inicioX === null) return;
+                const dx = e.clientX - inicioX; inicioX = null;
+                if (Math.abs(dx) > 40) mostrarDiapo(diapoActual + (dx < 0 ? 1 : -1));
+            });
+            escenario.addEventListener('pointercancel', () => { inicioX = null; });
+        })();
+
         // --- Ventana de información de los perfiles ---
         let focoAntesDeInfo = null;
         function abrirInfoPerfiles() {
@@ -662,6 +1040,7 @@
             if (evento.key === 'Escape') {
                 // Si la ventana de información está abierta, Escape solo cierra esa
                 if (cerrarInfoPerfiles()) return;
+                if (cerrarCompartir()) return;
                 cerrarPerfilUsuario();
                 if (typeof cerrarBurbujas === 'function') cerrarBurbujas();
             }
@@ -707,6 +1086,8 @@
         }
 
         document.addEventListener('keydown', (evento) => {
+            // Ni con la ventana de compartir.
+            if (!document.getElementById('modalCompartir').hidden) return;
             // No interferir con las flechas si el panel de perfil individual está abierto.
             if (!document.getElementById('modalPerfilUsuario').classList.contains('hidden')) return;
             // Ni con el mapa de conceptos a pantalla completa.
@@ -783,7 +1164,7 @@
                 );
                 if (d.autores && d.autores.length) {
                     const caja = crear('bt-autores', 'Quién más la usa:');
-                    d.autores.forEach(a => caja.appendChild(crear('', '👤 ' + a[0] + ': ' + a[1].toLocaleString('es-ES'))));
+                    d.autores.forEach(a => caja.appendChild(crear('', a[0] + ': ' + a[1].toLocaleString('es-ES'))));
                     tip.appendChild(caja);
                 }
                 tip.hidden = false;

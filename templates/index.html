@@ -20,16 +20,18 @@
     <meta property="og:title" content="WhatsInChat · Estadísticas de tu chat de grupo">
     <meta property="og:description" content="Sube tu chat de WhatsApp y obtén estadísticas detalladas de actividad, rankings y patrones de conversación, de forma privada.">
     <meta property="og:type" content="website">
-    <link rel="icon" type="image/svg+xml" href="/static/icono.svg">
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=2">
+    <link rel="stylesheet" href="/static/css/iconos.css">
+    <script>function pintarIconoTema(oscuro){var e=document.getElementById('iconoTema');if(e)e.innerHTML='<svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-'+(oscuro?'sol':'luna')+'"/></svg>';}</script>
     <link rel="stylesheet" href="/static/css/inicio.css">
     <link rel="stylesheet" href="/static/css/fondo.css">
 </head>
 <body class="ini">
 
     <header class="ini-top">
-        <a class="ini-marca" href="/" aria-label="WhatsInChat, inicio"><span aria-hidden="true">📊</span><span class="ini-nombre">Whats<em>In</em>Chat</span></a>
+        <a class="ini-marca" href="/" aria-label="WhatsInChat, inicio"><img class="ini-logo" src="/static/favicon.svg" alt="" width="28" height="28"><span class="ini-nombre">Whats<em>In</em>Chat</span></a>
         <button id="btnTema" type="button" onclick="alternarTema()" aria-label="Cambiar entre modo claro y oscuro" class="ini-tema">
-            <span id="iconoTema" aria-hidden="true">☀️</span>
+            <span id="iconoTema" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-sol"/></svg></span>
         </button>
     </header>
 
@@ -43,7 +45,7 @@
         <div class="ini-grid">
 
             <section class="ini-card ini-subida" aria-labelledby="titulo-subida">
-                <h2 id="titulo-subida">1 · Sube tu chat</h2>
+                <h2 id="titulo-subida">Sube tu chat</h2>
 
                 <form action="/analizar" method="post" enctype="multipart/form-data" id="analisisForm">
 
@@ -52,13 +54,13 @@
                         <input type="file" id="fileInput" name="file" accept=".txt,.zip,application/zip,application/x-zip-compressed,text/plain" required>
 
                         <div class="ini-vacio">
-                            <div class="ini-drop-icono" aria-hidden="true">📄</div>
+                            <div class="ini-drop-icono" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-documento"/></svg></div>
                             <p class="ini-drop-titulo">Haz clic aquí o arrastra tu chat</p>
                             <p class="ini-drop-sub">Archivo .zip tal cual lo exporta WhatsApp, o el .txt suelto</p>
                         </div>
 
                         <div class="ini-archivo" id="archivoElegido">
-                            <div class="ini-archivo-icono" aria-hidden="true">✅</div>
+                            <div class="ini-archivo-icono" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-check"/></svg></div>
                             <div class="ini-archivo-datos">
                                 <p class="ini-archivo-nombre" id="archivoNombre"></p>
                                 <p class="ini-archivo-meta" id="archivoMeta"></p>
@@ -70,9 +72,14 @@
                     <details class="ini-avanzadas">
                         <summary>Opciones avanzadas</summary>
                         <div class="ini-avanzadas-cuerpo">
-                            <label for="customWords">🏷️ Palabras clave a buscar (opcional)</label>
-                            <input type="text" id="customWords" name="custom_words" placeholder="Ej: lol, kebab, fútbol, llorar, TFG" class="ini-campo" autocomplete="off">
-                            <p class="ini-ayuda">Sepáralas por comas. Si lo dejas vacío se usará la lista de fábrica.</p>
+                            <label for="palabraNueva"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-etiqueta"/></svg> Palabras clave a buscar (opcional)</label>
+                            <ul class="ini-chips" id="listaPalabras" aria-label="Palabras que se van a buscar" hidden></ul>
+                            <div class="ini-anadir">
+                                <input type="text" id="palabraNueva" class="ini-campo" maxlength="40" placeholder="Escribe una palabra y pulsa Intro" autocomplete="off" enterkeyhint="done">
+                                <button type="button" id="btnAnadirPalabra" class="ini-anadir-btn">Añadir</button>
+                            </div>
+                            <input type="hidden" id="customWords" name="custom_words" value="">
+                            <p class="ini-ayuda">Pulsa Intro para añadir cada palabra y la ✕ para quitarla. Si no añades ninguna se usará la lista de fábrica.</p>
                         </div>
                     </details>
 
@@ -88,20 +95,20 @@
                 </form>
 
                 <div class="ini-separador" aria-hidden="true">o</div>
-                <a href="/ejemplo" id="btnEjemplo" class="ini-boton ini-boton-sec">👀 Ver un ejemplo con un chat ficticio</a>
+                <a href="/ejemplo" id="btnEjemplo" class="ini-boton ini-boton-sec"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-ojo"/></svg> Ver un ejemplo con un chat ficticio</a>
 
                 <div class="ini-privacidad">
-                    <span class="ini-candado" aria-hidden="true">🔒</span>
+                    <span class="ini-candado" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-candado"/></svg></span>
                     <p><strong>Tu chat no se guarda.</strong> Se procesa al momento en el servidor solo para generar las estadísticas; no se almacena en ninguna base de datos ni se comparte con terceros ni con servicios externos. Al terminar, los datos se descartan.</p>
                 </div>
             </section>
 
             <aside class="ini-card ini-guia" aria-labelledby="titulo-guia">
-                <h2 id="titulo-guia">2 · ¿Cómo exportar tu chat?</h2>
+                <h2 id="titulo-guia">¿Cómo exportar tu chat?</h2>
 
                 <div class="ini-selector" role="tablist" aria-label="Sistema del teléfono">
-                    <button type="button" role="tab" id="tab-android" aria-controls="pasos-android" aria-selected="true">🤖 Android</button>
-                    <button type="button" role="tab" id="tab-ios" aria-controls="pasos-ios" aria-selected="false" tabindex="-1">🍎 iPhone</button>
+                    <button type="button" role="tab" id="tab-android" aria-controls="pasos-android" aria-selected="true"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-android"/></svg> Android</button>
+                    <button type="button" role="tab" id="tab-ios" aria-controls="pasos-ios" aria-selected="false" tabindex="-1"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-movil"/></svg> iPhone</button>
                 </div>
 
                 <ol class="ini-pasos" id="pasos-android" role="tabpanel" aria-labelledby="tab-android">
@@ -121,16 +128,16 @@
                     <li><span>Súbelo aquí tal cual (.zip o .txt), sin extraerlo.</span></li>
                 </ol>
 
-                <p class="ini-guia-nota">💡 Elegir «sin archivos» hace que el chat pese poco y se analice más rápido.</p>
+                <p class="ini-guia-nota"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-bombilla"/></svg> Elegir «sin archivos» hace que el chat pese poco y se analice más rápido.</p>
             </aside>
         </div>
 
         <ul class="ini-funciones" aria-label="Qué obtienes con el análisis">
-            <li class="ini-funcion"><span aria-hidden="true">🏆</span><b>Ranking</b><small>Quién escribe más y cuánto</small></li>
-            <li class="ini-funcion"><span aria-hidden="true">🕒</span><b>Horas punta</b><small>Cuándo se habla en el grupo</small></li>
-            <li class="ini-funcion"><span aria-hidden="true">🔮</span><b>Mapa de palabras</b><small>Las más usadas, en burbujas</small></li>
-            <li class="ini-funcion"><span aria-hidden="true">🧩</span><b>Afinidad</b><small>Quién responde a quién</small></li>
-            <li class="ini-funcion"><span aria-hidden="true">🎭</span><b>Perfiles</b><small>El estilo de cada miembro</small></li>
+            <li class="ini-funcion"><span aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-trofeo"/></svg></span><b>Ranking</b><small>Quién escribe más y cuánto</small></li>
+            <li class="ini-funcion"><span aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-reloj"/></svg></span><b>Horas punta</b><small>Cuándo se habla en el grupo</small></li>
+            <li class="ini-funcion"><span aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-burbujas"/></svg></span><b>Mapa de palabras</b><small>Las más usadas, en burbujas</small></li>
+            <li class="ini-funcion"><span aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-afinidad"/></svg></span><b>Afinidad</b><small>Quién responde a quién</small></li>
+            <li class="ini-funcion"><span aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="/static/iconos.svg#i-perfil"/></svg></span><b>Perfiles</b><small>El estilo de cada miembro</small></li>
         </ul>
     </main>
 
@@ -140,9 +147,9 @@
         function alternarTema() {
             const esOscuroAhora = document.documentElement.classList.toggle('dark');
             try { localStorage.setItem('whatsinchat-theme', esOscuroAhora ? 'dark' : 'light'); } catch (e) {}
-            document.getElementById('iconoTema').textContent = esOscuroAhora ? '☀️' : '🌙';
+            pintarIconoTema(esOscuroAhora);
         }
-        document.getElementById('iconoTema').textContent = document.documentElement.classList.contains('dark') ? '☀️' : '🌙';
+        pintarIconoTema(document.documentElement.classList.contains('dark'));
 
         const fileInput = document.getElementById('fileInput');
         const dropzone = document.getElementById('dropzone');
@@ -183,6 +190,57 @@
 
         ['dragenter', 'dragover'].forEach(ev => dropzone.addEventListener(ev, () => dropzone.classList.add('arrastrando')));
         ['dragleave', 'drop'].forEach(ev => dropzone.addEventListener(ev, () => dropzone.classList.remove('arrastrando')));
+
+
+        // Palabras clave: se añaden con Intro (o el botón), se ven como etiquetas y se quitan con la ✕
+        (function () {
+            const MAX_PALABRAS = 30;
+            const entrada = document.getElementById('palabraNueva');
+            const lista = document.getElementById('listaPalabras');
+            const oculto = document.getElementById('customWords');
+            const palabras = [];
+
+            function pintar() {
+                lista.textContent = '';
+                palabras.forEach(function (p, i) {
+                    const li = document.createElement('li');
+                    li.className = 'ini-chip';
+                    const t = document.createElement('span');
+                    t.textContent = p;
+                    const b = document.createElement('button');
+                    b.type = 'button';
+                    b.textContent = '✕';
+                    b.setAttribute('aria-label', 'Quitar la palabra ' + p);
+                    b.addEventListener('click', function () { palabras.splice(i, 1); pintar(); entrada.focus(); });
+                    li.append(t, b);
+                    lista.appendChild(li);
+                });
+                lista.hidden = palabras.length === 0;
+                oculto.value = palabras.join(',');
+            }
+
+            function anadir() {
+                // La coma separa palabras: si pegan "lol, kebab, tfg" se añaden las tres.
+                entrada.value.split(',').forEach(function (trozo) {
+                    const p = trozo.trim().replace(/\s+/g, ' ');
+                    if (!p || palabras.length >= MAX_PALABRAS) return;
+                    if (palabras.some(function (x) { return x.toLowerCase() === p.toLowerCase(); })) return;
+                    palabras.push(p);
+                });
+                entrada.value = '';
+                pintar();
+            }
+
+            entrada.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') { e.preventDefault(); anadir(); }
+                else if (e.key === 'Backspace' && entrada.value === '' && palabras.length) { palabras.pop(); pintar(); }
+            });
+            entrada.addEventListener('input', function () { if (entrada.value.indexOf(',') !== -1) anadir(); });
+            document.getElementById('btnAnadirPalabra').addEventListener('click', function () { anadir(); entrada.focus(); });
+            // Si dejó una palabra escrita sin pulsar Intro, también cuenta al enviar
+            document.getElementById('analisisForm').addEventListener('submit', anadir);
+            pintar();
+        })();
 
         // Indicador de carga al enviar el formulario
         form.addEventListener('submit', function () {

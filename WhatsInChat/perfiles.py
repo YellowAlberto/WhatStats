@@ -44,16 +44,16 @@ _MINIMO_ABS = {
     "preguntas": 0.10, "rafaga": 0.12, "nocturno": 0.15,
 }
 
-# (emoji, título, plantilla de la explicación)
+# (icono, título, plantilla de la explicación). El icono es un nombre de static/iconos.svg
 _PERFILES = {
-    "risas":      ("😂", "El risueño",         "{pct} de sus mensajes llevan risas; la media del grupo es {media}."),
-    "cariño":     ("🥰", "El cariñoso",        "{pct} de sus mensajes tienen cariño (corazones, gracias, piropos); la media del grupo es {media}."),
-    "queja":      ("😤", "El gruñón",          "{pct} de sus mensajes son quejas o protestas; la media del grupo es {media}."),
-    "intensidad": ("🔥", "El intenso",         "{pct} de sus mensajes llevan exclamaciones, MAYÚSCULAS o letras alargadas; la media del grupo es {media}."),
-    "preguntas":  ("🤔", "El preguntón",       "{pct} de sus mensajes son preguntas; la media del grupo es {media}."),
-    "longitud":   ("📜", "El ensayista",       "Sus mensajes miden {valor} caracteres de media; la media del grupo es {media}."),
-    "rafaga":     ("⚡", "El ametrallador",    "{pct} de sus mensajes son ráfagas (seguidos de otro suyo en menos de un minuto); la media del grupo es {media}."),
-    "nocturno":   ("🌙", "El nocturno",        "{pct} de sus mensajes son de madrugada (de 0h a 5h); la media del grupo es {media}."),
+    "risas":      ("risa", "El risueño",         "{pct} de sus mensajes llevan risas; la media del grupo es {media}."),
+    "cariño":     ("carino", "El cariñoso",        "{pct} de sus mensajes tienen cariño (corazones, gracias, piropos); la media del grupo es {media}."),
+    "queja":      ("enfado", "El gruñón",          "{pct} de sus mensajes son quejas o protestas; la media del grupo es {media}."),
+    "intensidad": ("llama", "El intenso",         "{pct} de sus mensajes llevan exclamaciones, MAYÚSCULAS o letras alargadas; la media del grupo es {media}."),
+    "preguntas":  ("pregunta", "El preguntón",       "{pct} de sus mensajes son preguntas; la media del grupo es {media}."),
+    "longitud":   ("libro", "El ensayista",       "Sus mensajes miden {valor} caracteres de media; la media del grupo es {media}."),
+    "rafaga":     ("rayo", "El ametrallador",    "{pct} de sus mensajes son ráfagas (seguidos de otro suyo en menos de un minuto); la media del grupo es {media}."),
+    "nocturno":   ("luna", "El nocturno",        "{pct} de sus mensajes son de madrugada (de 0h a 5h); la media del grupo es {media}."),
 }
 
 
@@ -82,9 +82,9 @@ CATALOGO_PERFILES = [
      "criterio": f"Cuenta los mensajes que llegan menos de un minuto después de otro suyo (escribe en ráfagas). Requiere superar {_FACTOR} veces la media del grupo y al menos el {_min('rafaga')} de sus mensajes."},
     {"emoji": _PERFILES["nocturno"][0], "titulo": _PERFILES["nocturno"][1],
      "criterio": f"Cuenta los mensajes escritos entre las 0:00 y las 5:59. Requiere superar {_FACTOR} veces la media del grupo y al menos el {_min('nocturno')} de sus mensajes."},
-    {"emoji": "😌", "titulo": "El equilibrado",
+    {"emoji": "balanza", "titulo": "El equilibrado",
      "criterio": f"Lo recibe quien no supera {_FACTOR} veces la media del grupo en ningún rasgo: escribe de forma muy parecida al resto."},
-    {"emoji": "🫥", "titulo": "Sin perfil todavía",
+    {"emoji": "vacio", "titulo": "Sin perfil todavía",
      "criterio": f"Lo recibe quien tiene menos de {MIN_MENSAJES} mensajes de texto (no hay datos suficientes) o, si en el grupo no hay al menos dos personas con suficientes mensajes, porque no hay con quién compararlas."},
 ]
 
@@ -150,7 +150,7 @@ def calcular_perfiles(df_texto, df_total):
 
     perfiles = {}
     sin_datos = {
-        "emoji": "🫥", "titulo": "Sin perfil todavía",
+        "emoji": "vacio", "titulo": "Sin perfil todavía",
         "explicacion": f"Con menos de {MIN_MENSAJES} mensajes de texto no hay datos suficientes para describir su estilo.",
         "secundario": None,
     }
@@ -162,7 +162,7 @@ def calcular_perfiles(df_texto, df_total):
         # Sin con quién compararse, un perfil relativo no tiene sentido
         for autor in elegibles:
             perfiles[autor] = {
-                "emoji": "🫥", "titulo": "Sin perfil todavía",
+                "emoji": "vacio", "titulo": "Sin perfil todavía",
                 "explicacion": "Hacen falta al menos dos personas con suficientes mensajes para poder compararlas.",
                 "secundario": None,
             }
@@ -187,7 +187,7 @@ def calcular_perfiles(df_texto, df_total):
 
         if not puntuaciones:
             perfiles[autor] = {
-                "emoji": "😌", "titulo": "El equilibrado",
+                "emoji": "balanza", "titulo": "El equilibrado",
                 "explicacion": "No destaca especialmente en ningún rasgo: escribe de forma muy parecida a la media del grupo.",
                 "secundario": None,
             }

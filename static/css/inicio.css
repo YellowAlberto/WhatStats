@@ -76,7 +76,8 @@ body.ini {
 .ini-hero p { margin-top: .85rem; font-size: clamp(1rem, 1.6vw, 1.15rem); color: var(--ini-suave); }
 
 .ini-grid { display: grid; gap: 1.25rem; grid-template-columns: 1fr; }
-@media (min-width: 900px) { .ini-grid { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); align-items: start; } }
+/* En pantallas anchas la guía de exportación va a la izquierda y la subida a la derecha; en móvil la subida va primero. */
+@media (min-width: 900px) { .ini-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); align-items: start; } .ini-guia { order: -1; } }
 
 .ini-card {
     background: var(--ini-card); border: 1px solid var(--ini-borde); border-radius: 1.4rem;
@@ -209,3 +210,17 @@ body.ini {
     .ini-hero, .ini-card, .ini-funcion, .ini-spinner, .ini-barra div { animation: none; }
     .ini-drop, .ini-boton, .ini-tema { transition: none; }
 }
+.ini-logo { width: 28px; height: 28px; display: block; }
+.ini-funcion span { color: var(--ini-acento); }
+
+/* Palabras clave como etiquetas */
+.ini-chips { list-style: none; margin: 0 0 .6rem; padding: 0; display: flex; flex-wrap: wrap; gap: .4rem; }
+.ini-chips[hidden] { display: none; }
+.ini-chip { display: inline-flex; align-items: center; gap: .15rem; padding: .2rem .25rem .2rem .7rem; border-radius: 999px; background: var(--ini-acento-fondo); border: 1px solid var(--ini-acento-claro); color: var(--ini-acento); font-size: .85rem; font-weight: 700; max-width: 100%; }
+.ini-chip span { overflow-wrap: anywhere; }
+.ini-chip button { border: 0; background: transparent; color: inherit; width: 1.5rem; height: 1.5rem; border-radius: 50%; font-size: .72rem; line-height: 1; cursor: pointer; display: grid; place-items: center; }
+.ini-chip button:hover, .ini-chip button:focus-visible { background: var(--ini-acento-claro); color: #04201d; outline: none; }
+.ini-anadir { display: flex; gap: .5rem; }
+.ini-anadir .ini-campo { flex: 1; min-width: 0; }
+.ini-anadir-btn { border: 1px solid var(--ini-acento-claro); background: transparent; color: var(--ini-acento); font-weight: 700; font-size: .85rem; padding: 0 1rem; border-radius: .8rem; cursor: pointer; }
+.ini-anadir-btn:hover { background: var(--ini-acento-fondo); }

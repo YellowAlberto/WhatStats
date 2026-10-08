@@ -280,7 +280,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
                 conteo_por_autor[autor] = veces_autor
 
         autores_ordenados = sorted(conteo_por_autor.items(), key=lambda x: x[1], reverse=True)[:5]
-        info_hover = "<br>".join([f"👤 {autor}: {cant} veces" for autor, cant in autores_ordenados])
+        info_hover = "<br>".join([f"{autor}: {cant} veces" for autor, cant in autores_ordenados])
         if not info_hover:
             info_hover = "Nadie la ha mencionado"
 
@@ -476,6 +476,122 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
             "etiqueta": etiquetas_usuario.get(autor),
         }
 
+    # Resumen para las imágenes que se pueden compartir (carrusel). Solo lleva
+    # números, palabras sueltas y nombres de miembros: nunca texto de mensajes.
+    try:
+        inicio_chat = df['Fecha_Completa'].min()
+        fin_chat = df['Fecha_Completa'].max()
+        n_dias = max(1, (fin_chat.normalize() - inicio_chat.normalize()).days + 1)
+        por_dia_semana = df['Dia_Semana_Num'].value_counts().reindex(range(7), fill_value=0)
+        dia_pico_num = int(por_dia_semana.idxmax())
+        total_msgs = int(len(df))
+
+        # Día récord (el que más mensajes tuvo)
+        mensajes_por_fecha = df['Fecha_Completa'].dt.date.value_counts()
+        dia_record = {
+            "fecha": mensajes_por_fecha.index[0].strftime('%d/%m/%Y'),
+            "mensajes": int(mensajes_por_fecha.iloc[0]),
+        }
+
+        # Palabra y emoji más usados del grupo
+        palabra_top = None
+        if not top_100_palabras.empty:
+            p_top = str(top_100_palabras['Palabra'].iloc[0])
+            info_p = detalle_burbujas.get(p_top, {})
+            palabra_top = {
+                "palabra": p_top,
+                "veces": int(top_100_palabras['Frecuencia'].iloc[0]),
+                "autor": (info_p.get("autores") or [[None]])[0][0],
+            }
+        emoji_top = None
+        if todos_los_emojis:
+            e_top, e_veces = Counter(todos_los_emojis).most_common(1)[0]
+            emoji_top = {"emoji": e_top, "veces": int(e_veces)}
+
+        # Premios: solo entre quien tiene mensajes suficientes para compararse
+        MIN_PREMIO = 30
+        elegibles = [a for a in total_mensajes_usuario.index if total_mensajes_usuario[a] >= MIN_PREMIO]
+        premios = []
+
+        def _premio(titulo, icono, autor, dato):
+            premios.append({"titulo": titulo, "icono": icono, "nombre": str(autor), "dato": dato})
+
+        if len(elegibles) >= 2:
+            try:
+                noct = df[df['Hora_Int'] < 6]['Autor'].value_counts()
+                ratio_noct = (noct / total_mensajes_usuario).reindex(elegibles).fillna(0)
+                if ratio_noct.max() >= 0.05:
+                    a = ratio_noct.idxmax()
+                    _premio("El noctámbulo", "luna", a, f"{ratio_noct[a] * 100:.0f}% de sus mensajes, de madrugada")
+            except Exception:
+                pass
+            try:
+                t = tiempos_respuesta.reindex(elegibles).dropna()
+                if len(t):
+                    a = t.idxmin()
+                    _premio("El relámpago", "rayo", a, f"Responde en {formatear_min_seg(float(t[a]))} de media")
+            except Exception:
+                pass
+            try:
+                fan = porcentaje_fantasmas.reindex(elegibles).dropna()
+                if len(fan) and fan.max() > 0:
+                    a = fan.idxmax()
+                    _premio("El fantasma", "fantasma", a, f"{fan[a]:.0f}% de sus mensajes se quedan sin respuesta")
+            except Exception:
+                pass
+            try:
+                mm = df[df['Es_Multimedia']]['Autor'].value_counts()
+                if len(mm):
+                    a = mm.index[0]
+                    _premio("El fotógrafo", "clip", a, f"{int(mm.iloc[0])} fotos, vídeos o audios")
+            except Exception:
+                pass
+            try:
+                lm = longitud_media_por_usuario.reindex(elegibles).dropna()
+                if len(lm):
+                    a = lm.idxmax()
+                    _premio("El ensayista", "libro", a, f"{lm[a]:.0f} caracteres por mensaje")
+            except Exception:
+                pass
+            try:
+                el = df[df['Es_Eliminado']]['Autor'].value_counts()
+                if len(el):
+                    a = el.index[0]
+                    _premio("El arrepentido", "papelera", a, f"{int(el.iloc[0])} mensajes eliminados")
+            except Exception:
+                pass
+
+        resumen_compartir = {
+            "total": total_msgs,
+            "inicio": inicio_chat.strftime('%d/%m/%Y'),
+            "fin": fin_chat.strftime('%d/%m/%Y'),
+            "dias": int(n_dias),
+            "media_dia": int(round(total_msgs / n_dias)),
+            "miembros": int(df['Autor'].nunique()),
+            "multimedia": int(total_multimedia),
+            "eliminados": int(total_eliminados),
+            "hora_pico": int(m_hora.loc[m_hora['Mensajes'].idxmax(), 'Hora']),
+            "horas": [int(x) for x in m_hora['Mensajes'].tolist()],
+            "dia_pico": DIAS_SEMANA_ES[dia_pico_num],
+            "dias_semana": [int(x) for x in por_dia_semana.tolist()],
+            "dia_record": dia_record,
+            "palabra": palabra_top,
+            "emoji": emoji_top,
+            "premios": premios[:5],
+            "top": [
+                {
+                    "nombre": str(u),
+                    "mensajes": int(c),
+                    "pct": round(int(c) / total_msgs * 100) if total_msgs else 0,
+                    "perfil": (etiquetas_usuario.get(u) or {}).get("titulo"),
+                    "icono": (etiquetas_usuario.get(u) or {}).get("emoji"),
+                }
+                for u, c in list(total_mensajes_usuario.items())[:3]
+            ],
+        }
+    except Exception:
+        resumen_compartir = None
+
     # =========================================================================
     # 12. 📄 Informe PDF descargable (gráficas + explicaciones). Oculto en la
     #     web por ahora (ver resultados.html), pero se deja listo por si se
@@ -536,6 +652,7 @@ def analizar_chat(request: Request, file: UploadFile = File(...), custom_words: 
             # de la tabla de ranking). Se manda ya serializado a JSON: así el
             # HTML no depende de ningún filtro extra de Jinja2.
             "perfiles_usuario_json": _json_seguro(perfiles_usuario),
+            "resumen_compartir_json": _json_seguro(resumen_compartir),
         },
         request=request
     )
